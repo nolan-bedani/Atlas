@@ -1,0 +1,16 @@
+# Secrets & variables d'environnement
+.env
+.env.*
+
+# Certificats TLS
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Dossiers de secrets
+secrets/
+certs/
+ssl/
+tls/

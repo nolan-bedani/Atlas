@@ -1,0 +1,100 @@
+# =============================================================================
+# Projet Atlas — Nginx Reverse Proxy (DMZ, VLAN 20)
+# =============================================================================
+# This Compose file deploys the Nginx TLS-terminating reverse proxy that sits
+# in the DMZ (VLAN 20, 10.20.0.0/24) and forwards HTTPS traffic to the GLPI
+# PHP application backend in LAN_ADMIN (VLAN 30, 10.30.0.10:80).
+#
+# The Docker network below (172.20.0.0/24) is INTERNAL to this host and is
+# completely separate from the real VLAN 20 — host-level routing/firewall rules
+# must ensure that only this container is reachable from the public DMZ interface.
+#
+# No secrets are stored in this file. If environment variables are required,
+# declare them in an adjacent `.env` file (git-ignored). Reference them with
+# ${VAR_NAME} syntax in this file. See example below.
+# =============================================================================
+
+services:
+  nginx-proxy:
+    image: nginx:stable-alpine
+    container_name: nginx-proxy
+
+    # -------------------------------------------------------------------------
+    # Ports — DMZ-exposed listeners.
+    # Port 80 : HTTP only — Nginx immediately issues a 301 redirect to HTTPS.
+    #           No application content is ever served over plain HTTP.
+    # Port 443: HTTPS — TLS terminates here; traffic is forwarded in clear to
+    #           the internal backend at http://10.30.0.10:80 (LAN_ADMIN VLAN 30).
+    # -------------------------------------------------------------------------
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      # Main Nginx configuration — mounted read-only to prevent in-container
+      # tampering.
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+
+      # TLS certificate bundle and private key.
+      # IMPORTANT: The ./certs directory is git-ignored. Certificates MUST be
+      # provisioned manually on the host before starting this container, either
+      # via Let's Encrypt (certbot/acme.sh) or the internal PKI.
+      # Expected files:
+      #   ./certs/fullchain.pem  — full certificate chain (leaf + intermediates)
+      #   ./certs/privkey.pem    — private key (chmod 600, root-owned on host)
+      - ./certs:/etc/nginx/certs:ro
+
+      # Nginx access and error logs — persisted on the host for log shipping
+      # to Zabbix or a SIEM. Rotate with logrotate or a log-driver.
+      - ./logs:/var/log/nginx
+
+    networks:
+      - dmz_net
+
+    restart: unless-stopped
+
+    # -------------------------------------------------------------------------
+    # Least-privilege hardening.
+    # Drop ALL Linux capabilities, then add back only NET_BIND_SERVICE so Nginx
+    # can bind to privileged ports 80 and 443 without running as root.
+    # -------------------------------------------------------------------------
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+    # -------------------------------------------------------------------------
+    # Environment variables (none required by default).
+    # If future configuration requires secrets (e.g., OCSP stapling token,
+    # mtls client CA path), define them in ./.env and reference them here:
+    #
+    # environment:
+    #   - MY_SECRET=${MY_SECRET}
+    #
+    # The .env file must NOT be committed to version control.
+    # -------------------------------------------------------------------------
+
+    # -------------------------------------------------------------------------
+    # Healthcheck — disabled by default; uncomment once certs are in place.
+    # Used by Docker to determine container health, and can be scraped by
+    # Zabbix via HTTP checks on the /health endpoint.
+    # -------------------------------------------------------------------------
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "https://localhost/health", "||", "exit", "1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 15s
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  dmz_net:
+    driver: bridge
+    ipam:
+      config:
+        # 172.20.0.0/24 — container-internal subnet only.
+        # This does NOT correspond to the physical VLAN 20 (10.20.0.0/24).
+        # Host-level firewall/routing handles real VLAN segregation.
+        - subnet: 172.20.0.0/24
