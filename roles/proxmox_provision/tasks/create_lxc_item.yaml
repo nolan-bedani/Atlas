@@ -5,11 +5,15 @@
 
 # ─── Création du conteneur (idempotent : state present) ───
 
+# Authentification : jeton API si défini (vault_proxmox_token_*),
+# sinon repli sur le mot de passe (vault_proxmox_password).
 - name: "Créer le conteneur LXC {{ conteneur.hostname }} (VMID {{ conteneur.vmid }})"
   community.general.proxmox:
     api_host: "{{ vault_proxmox_host }}"
     api_user: "{{ vault_proxmox_user }}"
-    api_password: "{{ vault_proxmox_password }}"
+    api_token_id: "{{ vault_proxmox_token_id | default(omit) }}"
+    api_token_secret: "{{ vault_proxmox_token_secret | default(omit) }}"
+    api_password: "{{ vault_proxmox_password | default(omit) }}"
     validate_certs: false
     node: "{{ ansible_hostname }}"
     vmid: "{{ conteneur.vmid }}"

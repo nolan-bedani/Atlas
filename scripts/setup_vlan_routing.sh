@@ -61,8 +61,9 @@ if grep -qE '^\s*bridge-vlan-aware\s+yes' "${INTERFACES_FILE}"; then
 else
   log "Activation du VLAN-aware sur ${BRIDGE} dans ${INTERFACES_FILE}..."
   cp -a "${INTERFACES_FILE}" "${INTERFACES_FILE}.bak.$(date +%Y%m%d%H%M%S)"
-  # Insertion de la directive juste après la ligne « iface vmbr0 inet ... »
-  sed -i "/^iface ${BRIDGE} inet/a\\\tbridge-vlan-aware yes" "${INTERFACES_FILE}"
+  # Insertion juste après « iface vmbr0 inet ... » (espace final obligatoire
+  # dans le motif pour NE PAS matcher la stanza « iface vmbr0 inet6 »)
+  sed -i "/^iface ${BRIDGE} inet /a\\\tbridge-vlan-aware yes" "${INTERFACES_FILE}"
   RELOAD_NEEDED=1
   log "Directive 'bridge-vlan-aware yes' insérée."
 fi
@@ -71,7 +72,7 @@ if grep -qE '^\s*bridge-vids\s+' "${INTERFACES_FILE}"; then
   log "Directive bridge-vids déjà présente (aucune modification)."
 else
   log "Ajout de la plage de VLANs autorisés (bridge-vids 2-4094)..."
-  sed -i "/^iface ${BRIDGE} inet/a\\\tbridge-vids 2-4094" "${INTERFACES_FILE}"
+  sed -i "/^iface ${BRIDGE} inet /a\\\tbridge-vids 2-4094" "${INTERFACES_FILE}"
   RELOAD_NEEDED=1
 fi
 

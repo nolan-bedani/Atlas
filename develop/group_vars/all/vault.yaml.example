@@ -8,9 +8,14 @@
 #     (AES-256, mot de passe dans .vault_pass — lui aussi gitignored)
 
 # ─── API Proxmox ───
+# Authentification par jeton API (recommandé, révocable) :
+#   pveum user token add root@pam ansible --privsep 0
+# OU par mot de passe : remplacer les lignes token par vault_proxmox_password.
 vault_proxmox_host: "138.201.135.108"
 vault_proxmox_user: "root@pam"
-vault_proxmox_password: "CHANGE_ME"
+vault_proxmox_token_id: "ansible"
+vault_proxmox_token_secret: "CHANGE_ME"
+# vault_proxmox_password: "CHANGE_ME"
 
 # ─── MariaDB ───
 vault_mariadb_root_password: "CHANGE_ME"

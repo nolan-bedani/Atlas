@@ -12,11 +12,13 @@
   failed_when: proxmox_network_bridge_check.rc != 0
 
 # ─── Activation du mode VLAN-aware ───
+# NB : l'espace final dans insertafter est OBLIGATOIRE pour ne pas matcher
+# la stanza « iface vmbr0 inet6 » (présente sur les serveurs Hetzner).
 - name: "Activer le mode VLAN-aware sur {{ proxmox_network_bridge }}"
   ansible.builtin.lineinfile:
     path: /etc/network/interfaces
     line: "\tbridge-vlan-aware yes"
-    insertafter: "^iface {{ proxmox_network_bridge }} inet"
+    insertafter: "^iface {{ proxmox_network_bridge }} inet "
     regexp: '^\s*bridge-vlan-aware\s+'
     state: present
     backup: true
@@ -26,7 +28,7 @@
   ansible.builtin.lineinfile:
     path: /etc/network/interfaces
     line: "\tbridge-vids 2-4094"
-    insertafter: "^iface {{ proxmox_network_bridge }} inet"
+    insertafter: "^iface {{ proxmox_network_bridge }} inet "
     regexp: '^\s*bridge-vids\s+'
     state: present
   notify: Recharger la configuration réseau
