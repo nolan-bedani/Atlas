@@ -13,8 +13,20 @@
     mode: "0750"
   loop:
     - /opt/atlas/scripts
-    - "{{ mariadb_backup_dir }}"
     - /var/log/atlas
+
+# Le chemin complet des dumps doit être traversable et lisible par atlsvc
+# (la collecte rsync depuis atlbkp01p s'authentifie avec ce compte).
+- name: Créer l'arborescence des dumps (lisible par atlsvc)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: atlsvc
+    mode: "0750"
+  loop:
+    - "{{ mariadb_backup_dir | dirname }}"
+    - "{{ mariadb_backup_dir }}"
 
 # ─── Script de dump ───
 - name: Déployer le script de sauvegarde dump_glpi.sh
