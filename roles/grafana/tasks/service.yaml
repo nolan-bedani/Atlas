@@ -24,8 +24,9 @@
     status_code: 200
   register: grafana_health_check
   until: grafana_health_check.status == 200
-  retries: 5
-  delay: 5
+  # Le redémarrage peut dépasser 60 s sur un conteneur à 512 Mo
+  retries: 12
+  delay: 10
 
 # ─── Débogage ───
 
