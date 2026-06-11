@@ -1,0 +1,15 @@
+# ══════════════════════════════════════════════
+# Rôle : grafana — provisioning des dashboards Atlas
+# Fichier géré par Ansible — toute modification manuelle sera écrasée
+# ══════════════════════════════════════════════
+apiVersion: 1
+
+providers:
+  - name: Atlas
+    folder: Atlas
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
