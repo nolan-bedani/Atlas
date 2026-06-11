@@ -13,5 +13,11 @@ proxmox_network_vlans:
   - { id: 30, subnet: "10.30.0.0/24", gw: "10.30.0.1" }
   - { id: 90, subnet: "10.90.0.0/24", gw: "10.90.0.1" }
 
+# ─── Sous-réseaux hérités (hors Atlas) à préserver dans le NAT ───
+# rules.v4 étant déployé en intégralité, tout NAT préexistant doit y figurer
+# (ex. lab Centreon sur vmbr0 natif 10.10.10.0/24).
+proxmox_network_extra_nat_subnets:
+  - "10.10.10.0/24"
+
 # ─── Debug ───
 proxmox_network_debug: false

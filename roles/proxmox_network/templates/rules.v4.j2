@@ -20,6 +20,11 @@
 {% endif %}
 {% endfor %}
 {% endfor %}
+{% for subnet in proxmox_network_extra_nat_subnets %}
+# ─── Sous-réseau hérité {{ subnet }} (préservé) ───
+-A FORWARD -s {{ subnet }} -o {{ proxmox_network_physical_iface }} -j ACCEPT
+-A FORWARD -d {{ subnet }} -i {{ proxmox_network_physical_iface }} -m state --state RELATED,ESTABLISHED -j ACCEPT
+{% endfor %}
 COMMIT
 
 *nat
@@ -30,5 +35,9 @@ COMMIT
 {% for vlan in proxmox_network_vlans %}
 # ─── NAT sortant VLAN {{ vlan.id }} ───
 -A POSTROUTING -s {{ vlan.subnet }} -o {{ proxmox_network_physical_iface }} -j MASQUERADE
+{% endfor %}
+{% for subnet in proxmox_network_extra_nat_subnets %}
+# ─── NAT sortant hérité {{ subnet }} (préservé) ───
+-A POSTROUTING -s {{ subnet }} -o {{ proxmox_network_physical_iface }} -j MASQUERADE
 {% endfor %}
 COMMIT
