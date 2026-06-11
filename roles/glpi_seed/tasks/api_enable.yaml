@@ -3,22 +3,27 @@
 # Rôle : glpi_seed — activation de l'API REST et jeton API
 # ══════════════════════════════════════════════
 
-# ─── Activation de l'API REST de GLPI (via MariaDB sur atldb01p) ───
+# ─── Activation de l'API REST de GLPI ───
+# IMPORTANT : passer par la console GLPI et NON par un UPDATE SQL direct —
+# GLPI met sa configuration en cache et ignorerait la modification.
+# L'interrupteur principal est « enable_api » (« use_rest_api » ne suffit pas).
 
-- name: Lire l'état actuel de l'API REST dans la configuration GLPI
+- name: Lire l'état actuel de l'API dans la configuration GLPI
   ansible.builtin.command: >
     mysql glpi_db -N -e
-    "SELECT value FROM glpi_configs WHERE context='core' AND name='use_rest_api';"
+    "SELECT name, value FROM glpi_configs WHERE name IN ('enable_api','use_rest_api');"
   delegate_to: atldb01p
   register: glpi_seed_api_state
   changed_when: false
 
-- name: Activer l'API REST de GLPI
-  ansible.builtin.command: >
-    mysql glpi_db -N -e
-    "UPDATE glpi_configs SET value='1' WHERE context='core' AND name='use_rest_api';"
-  delegate_to: atldb01p
-  when: glpi_seed_api_state.stdout | trim != "1"
+- name: Activer l'API REST de GLPI (console + purge du cache)
+  ansible.builtin.shell: >
+    cd /var/www/glpi &&
+    sudo -u www-data php bin/console config:set enable_api 1 &&
+    sudo -u www-data php bin/console config:set use_rest_api 1 &&
+    sudo -u www-data php bin/console config:set url_base_api "{{ glpi_seed_api_url }}" &&
+    sudo -u www-data php bin/console cache:clear
+  when: "'enable_api\t1' not in glpi_seed_api_state.stdout"
 
 # ─── Jeton API du compte glpi (secret — no_log) ───
 
