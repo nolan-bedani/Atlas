@@ -35,8 +35,11 @@ log "Début du dump de la base glpi_db vers ${FICHIER}"
 # (visible par la supervision Zabbix).
 set +e
 mysqldump --single-transaction --routines --triggers --flush-logs glpi_db | gzip > "${FICHIER}"
-RC_DUMP=${PIPESTATUS[0]}
-RC_GZIP=${PIPESTATUS[1]}
+# Capture du tableau ENTIER en une seule affectation : toute commande
+# (y compris une affectation) réinitialise PIPESTATUS.
+RC=("${PIPESTATUS[@]}")
+RC_DUMP=${RC[0]}
+RC_GZIP=${RC[1]}
 set -e
 
 if [ "${RC_DUMP}" -ne 0 ] || [ "${RC_GZIP}" -ne 0 ]; then

@@ -28,6 +28,18 @@
     state: absent
   notify: Recharger nginx (zabbix)
 
+# ─── Configuration applicative du frontend (équivaut à l'assistant web) ───
+
+- name: Déployer la configuration du frontend Zabbix (zabbix.conf.php)
+  ansible.builtin.template:
+    src: zabbix.conf.php.j2
+    dest: /etc/zabbix/web/zabbix.conf.php
+    owner: www-data
+    group: www-data
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer php-fpm (zabbix)
+
 # ─── Réglages PHP du frontend ───
 
 - name: Déployer les réglages PHP requis par le frontend Zabbix
