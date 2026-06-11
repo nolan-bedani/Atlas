@@ -31,6 +31,8 @@
     tags: "atlas"
     description: "Projet Atlas PRA/DR | Role: {{ conteneur.role }} | Managed by Ansible"
     unprivileged: true
-    features: "nesting=1,keyctl=1"
+    # keyctl retiré : l'API Proxmox n'autorise que nesting via jeton API
+    # (keyctl exige une session root@pam et ne sert qu'à Docker imbriqué)
+    features: "nesting=1"
     onboot: true
     state: present
