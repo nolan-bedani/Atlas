@@ -35,21 +35,27 @@
   register: proxmox_provision_cluster_resources
   changed_when: false
 
-- name: Vérifier que les VMIDs requis sont libres
+# Un VMID déjà présent n'est PAS un conflit s'il porte le hostname attendu
+# (idempotence : re-exécution ou ajout incrémental de conteneurs).
+# Seul un VMID occupé par une AUTRE machine constitue un conflit réel.
+- name: Identifier les conflits de VMID réels
+  ansible.builtin.set_fact:
+    proxmox_provision_vmid_conflicts: >-
+      {{ proxmox_provision_cluster_resources.stdout | from_json
+      | selectattr('vmid', 'in', proxmox_containers | map(attribute='vmid') | list)
+      | rejectattr('name', 'in', proxmox_containers | map(attribute='hostname') | list)
+      | map(attribute='vmid') | list }}
+
+- name: Vérifier l'absence de conflit de VMID
   ansible.builtin.assert:
     that:
-      - >-
-        proxmox_containers | map(attribute='vmid') | list
-        | intersect(proxmox_provision_cluster_resources.stdout | from_json
-        | map(attribute='vmid') | list) | length == 0
+      - proxmox_provision_vmid_conflicts | length == 0
     fail_msg: >-
-      Conflit de VMID détecté : les identifiants suivants sont déjà utilisés
-      sur le cluster Proxmox :
-      {{ proxmox_containers | map(attribute='vmid') | list
-      | intersect(proxmox_provision_cluster_resources.stdout | from_json
-      | map(attribute='vmid') | list) }}.
-      Libérez ces VMIDs ou modifiez la variable proxmox_containers.
-    success_msg: "Tous les VMIDs requis (200-206) sont disponibles."
+      Conflit de VMID détecté : les identifiants
+      {{ proxmox_provision_vmid_conflicts }} sont déjà utilisés par des
+      machines étrangères au projet Atlas. Libérez ces VMIDs ou modifiez
+      la variable proxmox_containers.
+    success_msg: "Aucun conflit de VMID — conteneurs absents ou déjà Atlas (idempotent)."
 
 - name: Afficher les ressources du cluster (debug)
   ansible.builtin.debug:
