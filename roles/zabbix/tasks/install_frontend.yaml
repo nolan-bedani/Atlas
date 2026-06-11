@@ -1,0 +1,63 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — frontend web (nginx + php-fpm)
+# ══════════════════════════════════════════════
+
+# ─── Configuration nginx du frontend ───
+
+- name: Déployer la configuration nginx du frontend Zabbix
+  ansible.builtin.template:
+    src: zabbix_nginx.conf.j2
+    dest: /etc/zabbix/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx (zabbix)
+
+- name: Activer l'inclusion de la configuration Zabbix dans nginx
+  ansible.builtin.file:
+    src: /etc/zabbix/nginx.conf
+    dest: /etc/nginx/conf.d/zabbix.conf
+    state: link
+    force: true
+  notify: Recharger nginx (zabbix)
+
+- name: Supprimer le site nginx par défaut
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger nginx (zabbix)
+
+# ─── Réglages PHP du frontend ───
+
+- name: Déployer les réglages PHP requis par le frontend Zabbix
+  ansible.builtin.template:
+    src: 99-zabbix-php.ini.j2
+    dest: /etc/php/8.2/fpm/conf.d/99-zabbix.ini
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Redémarrer php-fpm (zabbix)
+
+# ─── Pare-feu UFW ───
+
+- name: Autoriser l'accès au frontend Zabbix (port {{ zabbix_frontend_port }})
+  community.general.ufw:
+    rule: allow
+    port: "{{ zabbix_frontend_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.30.0.0/24
+    - 10.90.0.0/24
+
+- name: Autoriser le trapper Zabbix (port 10051)
+  community.general.ufw:
+    rule: allow
+    port: "10051"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.20.0.0/24
+    - 10.30.0.0/24
+    - 10.90.0.0/24

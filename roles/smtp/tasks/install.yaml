@@ -1,0 +1,29 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — installation de Postfix
+# ══════════════════════════════════════════════
+
+# ─── Pré-configuration debconf (installation non interactive) ───
+- name: Pré-configurer le type de serveur de messagerie Postfix
+  ansible.builtin.debconf:
+    name: postfix
+    question: postfix/main_mailer_type
+    value: "Internet Site"
+    vtype: select
+
+- name: Pré-configurer le nom de messagerie Postfix
+  ansible.builtin.debconf:
+    name: postfix
+    question: postfix/mailname
+    value: "{{ smtp_hostname }}"
+    vtype: string
+
+# ─── Installation des paquets ───
+- name: Installer Postfix et les utilitaires de messagerie
+  ansible.builtin.apt:
+    name:
+      - postfix
+      - mailutils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

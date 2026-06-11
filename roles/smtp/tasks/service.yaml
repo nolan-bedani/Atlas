@@ -1,0 +1,29 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — service et vérification
+# ══════════════════════════════════════════════
+
+# ─── Service Postfix ───
+- name: Activer et démarrer le service postfix
+  ansible.builtin.service:
+    name: postfix
+    enabled: true
+    state: started
+
+# ─── Application immédiate des notifications en attente ───
+- name: Forcer l'exécution des handlers en attente
+  ansible.builtin.meta: flush_handlers
+
+# ─── Vérification fonctionnelle ───
+- name: Envoyer un courriel de test à root
+  ansible.builtin.shell: echo "Test Atlas" | mail -s "Test SMTP Atlas" root
+  changed_when: false
+
+# ─── Debug ───
+- name: Afficher les variables du rôle smtp
+  ansible.builtin.debug:
+    msg:
+      - "Nom d'hôte SMTP   : {{ smtp_hostname }}"
+      - "Adresse d'écoute  : {{ smtp_listen_ip }}"
+      - "Relais sortant    : {{ smtp_relayhost | default('(aucun)', true) }}"
+  when: smtp_debug

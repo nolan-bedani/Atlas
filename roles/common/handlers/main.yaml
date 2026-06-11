@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — handlers
+# ══════════════════════════════════════════════
+
+# ─── Services SSH et NTP ───
+
+# Sous Debian, le service sshd s'appelle « ssh »
+- name: Redémarrer sshd
+  ansible.builtin.service:
+    name: ssh
+    state: restarted
+
+- name: Redémarrer systemd-timesyncd
+  ansible.builtin.service:
+    name: systemd-timesyncd
+    state: restarted

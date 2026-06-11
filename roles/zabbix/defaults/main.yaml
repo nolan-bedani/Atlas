@@ -1,0 +1,22 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Version et dépôt Zabbix ───
+
+zabbix_version: "7.0"
+zabbix_release_deb_url: "https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.0+debian12_all.deb"
+
+# ─── Réseau et base de données ───
+
+# Adresse IP du serveur Zabbix (atlzbx01p)
+zabbix_server_ip: "10.30.0.12"
+# Adresse IP du serveur MariaDB distant (atldb01p)
+zabbix_db_host: "10.30.0.10"
+# Port d'écoute du frontend web (nginx)
+zabbix_frontend_port: 8080
+
+# ─── Débogage ───
+
+zabbix_debug: false

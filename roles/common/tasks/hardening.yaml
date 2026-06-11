@@ -1,0 +1,43 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — durcissement SSH et pare-feu
+# ══════════════════════════════════════════════
+
+# ─── Configuration SSH durcie ───
+
+- name: Déployer la configuration sshd durcie
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "sshd -t -f %s"
+  notify: Redémarrer sshd
+
+# ─── Pare-feu UFW : politiques par défaut ───
+
+- name: Définir la politique UFW par défaut en entrée (deny)
+  community.general.ufw:
+    direction: incoming
+    default: deny
+
+- name: Définir la politique UFW par défaut en sortie (allow)
+  community.general.ufw:
+    direction: outgoing
+    default: allow
+
+# ─── Pare-feu UFW : règles d'accès ───
+
+- name: Autoriser SSH (22/tcp) depuis le sous-réseau du bastion
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    from_ip: 10.90.0.0/24
+
+# ─── Pare-feu UFW : activation ───
+
+- name: Activer le pare-feu UFW
+  community.general.ufw:
+    state: enabled

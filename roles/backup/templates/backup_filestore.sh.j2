@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════════════════════════════
+# backup_filestore.sh — Sauvegarde du filestore GLPI vers atlbkp01p
+# Géré par Ansible (rôle backup) — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════════════════════════════
+set -euo pipefail
+
+# ─── Paramètres ───
+LOG_FILE="{{ backup_log_dir }}/backup_filestore.log"
+SOURCE="{{ backup_remote_user }}@{{ backup_glpi_host }}:{{ backup_glpi_filestore }}/"
+DEST="{{ backup_filestore_dest }}/"
+SSH_OPTS="ssh -i {{ backup_ssh_key_path }} -o StrictHostKeyChecking=no"
+
+# ─── Journalisation horodatée ───
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE}"
+}
+
+# En cas d'échec, journaliser avant de sortir avec un code non nul
+# (le code retour non nul est remonté par cron et supervisé par Zabbix)
+trap 'log "ÉCHEC : la sauvegarde du filestore a échoué (code ${?})"' ERR
+
+# ─── Début ───
+debut_epoch=$(date +%s)
+log "DÉBUT sauvegarde filestore GLPI : ${SOURCE} -> ${DEST}"
+
+# ─── Synchronisation rsync (miroir avec suppression) ───
+rsync -avz --delete -e "${SSH_OPTS}" "${SOURCE}" "${DEST}" >> "${LOG_FILE}" 2>&1
+
+# ─── Fin : durée et taille totale ───
+fin_epoch=$(date +%s)
+duree=$((fin_epoch - debut_epoch))
+taille=$(du -sh "${DEST}" | awk '{print $1}')
+log "FIN sauvegarde filestore GLPI — durée : ${duree}s — taille totale : ${taille}"
+
+exit 0

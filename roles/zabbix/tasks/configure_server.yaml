@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — configuration du serveur Zabbix
+# ══════════════════════════════════════════════
+
+# ─── Fichier de configuration principal ───
+
+# no_log : le fichier rendu contient le mot de passe de la BDD
+- name: Déployer la configuration du serveur Zabbix
+  ansible.builtin.template:
+    src: zabbix_server.conf.j2
+    dest: /etc/zabbix/zabbix_server.conf
+    owner: root
+    group: zabbix
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer zabbix-server

@@ -1,0 +1,18 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Version de GLPI ───
+glpi_version: "10.0.16"
+
+# ─── Somme de contrôle SHA-256 de l'archive ───
+# À remplir manuellement après vérification sur les releases GitHub
+glpi_checksum: ""
+
+# ─── Chemins d'installation ───
+glpi_webroot: "/var/www/glpi/public"
+glpi_data_dir: "/var/lib/glpi"
+
+# ─── Mode debug ───
+glpi_debug: false

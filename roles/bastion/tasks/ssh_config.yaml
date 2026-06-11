@@ -1,0 +1,24 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — configuration cliente SSH de root
+# ══════════════════════════════════════════════
+
+# ─── Répertoire SSH de root ───
+
+- name: Créer le répertoire /root/.ssh
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# ─── Configuration cliente SSH ───
+
+- name: Déployer la configuration SSH cliente vers les conteneurs Atlas
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: /root/.ssh/config
+    owner: root
+    group: root
+    mode: "0600"

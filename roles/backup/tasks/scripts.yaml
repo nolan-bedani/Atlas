@@ -1,0 +1,40 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — déploiement des scripts de sauvegarde
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Droits de lecture des dumps pour atlsvc sur atldb01p ───
+# atlsvc doit pouvoir lire les dumps afin que la collecte par rsync fonctionne.
+- name: "Donner au groupe atlsvc l'accès en lecture aux dumps sur atldb01p"
+  ansible.builtin.file:
+    path: "{{ backup_db_dumps_dir }}"
+    state: directory
+    group: "{{ backup_remote_user }}"
+    mode: "g+rx"
+    recurse: true
+  delegate_to: atldb01p
+
+# ─── Déploiement des scripts ───
+- name: "Déployer le script de sauvegarde du filestore GLPI"
+  ansible.builtin.template:
+    src: backup_filestore.sh.j2
+    dest: "{{ backup_scripts_dir }}/backup_filestore.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: "Déployer le script de collecte des dumps MariaDB"
+  ansible.builtin.template:
+    src: collect_dumps.sh.j2
+    dest: "{{ backup_scripts_dir }}/collect_dumps.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+# ─── Diagnostic (mode debug) ───
+- name: "Afficher les scripts déployés"
+  ansible.builtin.debug:
+    msg:
+      - "{{ backup_scripts_dir }}/backup_filestore.sh → {{ backup_remote_user }}@{{ backup_glpi_host }}:{{ backup_glpi_filestore }}"
+      - "{{ backup_scripts_dir }}/collect_dumps.sh → {{ backup_remote_user }}@{{ backup_db_host }}:{{ backup_db_dumps_dir }}"
+  when: backup_debug | bool

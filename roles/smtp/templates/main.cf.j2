@@ -1,0 +1,29 @@
+# ══════════════════════════════════════════════
+# Rôle : smtp — configuration principale Postfix
+# Fichier géré par Ansible — ne pas modifier manuellement
+# ══════════════════════════════════════════════
+
+# ─── Identité du serveur ───
+myhostname = {{ smtp_hostname }}
+mydomain = atlas.local
+myorigin = $mydomain
+
+# ─── Interfaces et protocoles ───
+inet_interfaces = loopback-only, {{ smtp_listen_ip }}
+inet_protocols = ipv4
+
+# ─── Réseaux autorisés à relayer ───
+mynetworks = 10.20.0.0/24, 10.30.0.0/24, 127.0.0.0/8
+
+# ─── Destinations locales ───
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+
+# ─── Relais sortant éventuel ───
+relayhost = {{ smtp_relayhost }}
+
+# ─── Alias locaux ───
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+
+# ─── Restrictions de relais (anti-relais ouvert) ───
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination

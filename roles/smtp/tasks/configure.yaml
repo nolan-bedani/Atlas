@@ -1,0 +1,38 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — configuration de Postfix
+# ══════════════════════════════════════════════
+
+# ─── Configuration principale ───
+- name: Déployer la configuration principale main.cf
+  ansible.builtin.template:
+    src: main.cf.j2
+    dest: /etc/postfix/main.cf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger postfix
+
+# ─── Alias de messagerie ───
+- name: Rediriger les courriels de root vers atlsvc
+  ansible.builtin.lineinfile:
+    path: /etc/aliases
+    regexp: '^root:'
+    line: 'root: atlsvc'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reconstruire les alias
+
+# ─── Pare-feu : accès SMTP restreint aux réseaux Atlas ───
+- name: Autoriser le port 25/tcp depuis les réseaux Atlas
+  community.general.ufw:
+    rule: allow
+    port: "25"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Atlas - acces SMTP"
+  loop:
+    - 10.20.0.0/24
+    - 10.30.0.0/24

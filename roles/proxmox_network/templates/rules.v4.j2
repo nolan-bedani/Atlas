@@ -1,0 +1,34 @@
+# ══════════════════════════════════════════════
+# Règles iptables Atlas — géré par Ansible (rôle proxmox_network)
+# NAT MASQUERADE + FORWARD pour les VLANs 20/30/90 vers {{ proxmox_network_physical_iface }}
+# Ne pas modifier manuellement (écrasé à chaque exécution du rôle).
+# ══════════════════════════════════════════════
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+{% for vlan in proxmox_network_vlans %}
+# ─── VLAN {{ vlan.id }} ({{ vlan.subnet }}) → Internet ───
+-A FORWARD -s {{ vlan.subnet }} -o {{ proxmox_network_physical_iface }} -j ACCEPT
+-A FORWARD -d {{ vlan.subnet }} -i {{ proxmox_network_physical_iface }} -m state --state RELATED,ESTABLISHED -j ACCEPT
+{% endfor %}
+# ─── Routage inter-VLAN (DMZ ↔ LAN ADMIN ↔ MGMT) ───
+{% for src in proxmox_network_vlans %}
+{% for dst in proxmox_network_vlans %}
+{% if src.id != dst.id %}
+-A FORWARD -s {{ src.subnet }} -d {{ dst.subnet }} -j ACCEPT
+{% endif %}
+{% endfor %}
+{% endfor %}
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+{% for vlan in proxmox_network_vlans %}
+# ─── NAT sortant VLAN {{ vlan.id }} ───
+-A POSTROUTING -s {{ vlan.subnet }} -o {{ proxmox_network_physical_iface }} -j MASQUERADE
+{% endfor %}
+COMMIT

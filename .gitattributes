@@ -1,0 +1,11 @@
+# ══════════════════════════════════════════════
+# Projet Atlas — fins de ligne LF obligatoires
+# (les scripts et fichiers Ansible sont exécutés sur Linux)
+# ══════════════════════════════════════════════
+*.sh   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.j2   text eol=lf
+*.cfg  text eol=lf
+ansible.cfg text eol=lf
+*.md   text eol=lf

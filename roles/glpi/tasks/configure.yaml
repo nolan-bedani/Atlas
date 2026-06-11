@@ -1,0 +1,46 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — configuration de GLPI et de nginx
+# ══════════════════════════════════════════════
+
+# ─── Connexion à la base de données (secrets via Vault) ───
+
+- name: Déployer la configuration de connexion à la base de données
+  ansible.builtin.template:
+    src: config_db.php.j2
+    dest: "{{ glpi_data_dir }}/config/config_db.php"
+    owner: www-data
+    group: www-data
+    mode: "0640"
+
+# ─── Hôte virtuel nginx pour GLPI ───
+
+- name: Déployer le vhost nginx de GLPI
+  ansible.builtin.template:
+    src: vhost_glpi.conf.j2
+    dest: /etc/nginx/sites-available/glpi.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx (glpi)
+
+- name: Activer le vhost GLPI (lien symbolique)
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/glpi.conf
+    dest: /etc/nginx/sites-enabled/glpi.conf
+    state: link
+  notify: Recharger nginx (glpi)
+
+- name: Désactiver le site par défaut de nginx
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger nginx (glpi)
+
+# ─── Ouverture du pare-feu UFW ───
+
+- name: Autoriser le flux HTTP entrant (depuis le reverse proxy)
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp

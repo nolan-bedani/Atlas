@@ -1,0 +1,150 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# pra_restore_granular.yaml — Restauration granulaire (tickets supprimés)
+# Usage : ansible-playbook pra_restore_granular.yaml \
+#           -i develop/hosts.yaml \
+#           -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_20260101_020000.sql.gz"
+# ══════════════════════════════════════════════════════════════════════
+
+- name: "PRA — Restauration granulaire des tickets GLPI"
+  hosts: atldb01p
+  gather_facts: false
+  tasks:
+    # ─── Horodatage de début ───
+    - name: "Enregistrer l'horodatage de début (epoch)"
+      ansible.builtin.set_fact:
+        pra_start_epoch: "{{ lookup('ansible.builtin.pipe', 'date +%s') }}"
+
+    - name: "Créer le répertoire de journalisation PRA"
+      ansible.builtin.file:
+        path: /var/log/atlas
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Journaliser le début de la restauration granulaire"
+      ansible.builtin.shell: >
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] DÉBUT restauration granulaire —
+        dump : {{ pra_target_dump | default('NON DÉFINI') }}"
+        >> /var/log/atlas/pra_restore_granular.log
+      changed_when: true
+
+    # ─── Vérifications préalables ───
+    - name: "Vérifier que la variable pra_target_dump est fournie"
+      ansible.builtin.assert:
+        that:
+          - pra_target_dump is defined
+          - pra_target_dump | length > 0
+        fail_msg: >-
+          La variable pra_target_dump est obligatoire. Relancez le playbook avec :
+          -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_YYYYMMDD_HHMMSS.sql.gz"
+        success_msg: "Dump cible fourni : {{ pra_target_dump }}"
+
+    - name: "Vérifier l'existence du dump sur atldb01p"
+      ansible.builtin.stat:
+        path: "{{ pra_target_dump }}"
+      register: pra_dump_stat
+
+    - name: "Arrêter si le dump est introuvable"
+      ansible.builtin.assert:
+        that:
+          - pra_dump_stat.stat.exists
+        fail_msg: "Le dump {{ pra_target_dump }} est introuvable sur atldb01p. Vérifiez le chemin fourni."
+        success_msg: "Le dump {{ pra_target_dump }} existe bien sur atldb01p."
+
+    # ─── Restauration dans une base temporaire ───
+    # La base de production n'est JAMAIS touchée directement : le dump est
+    # restauré dans glpi_restore_tmp, puis seules les tables de tickets en
+    # sont extraites (accès root via /root/.my.cnf).
+    - name: "Créer la base temporaire glpi_restore_tmp"
+      ansible.builtin.command: >
+        mysql -e "DROP DATABASE IF EXISTS glpi_restore_tmp;
+        CREATE DATABASE glpi_restore_tmp
+        CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+      changed_when: true
+      no_log: true
+
+    - name: "Restaurer le dump dans la base temporaire"
+      ansible.builtin.shell: >
+        set -o pipefail;
+        zcat {{ pra_target_dump }} | mysql glpi_restore_tmp
+      args:
+        executable: /bin/bash
+      changed_when: true
+      no_log: true
+
+    # ─── Export sélectif des tables de tickets ───
+    # IMPORTANT : --no-create-info et --insert-ignore garantissent que les
+    # tickets créés APRÈS l'incident ne sont JAMAIS écrasés : seules les
+    # lignes absentes de la production seront réinsérées.
+    - name: "Exporter les tables de tickets depuis la base temporaire"
+      ansible.builtin.shell: >
+        mysqldump --no-create-info --skip-add-drop-table --insert-ignore
+        glpi_restore_tmp
+        glpi_tickets glpi_tickets_users glpi_tickets_groups
+        glpi_itilsolutions glpi_itilfollowups
+        > /tmp/tickets_restore.sql
+      changed_when: true
+      no_log: true
+
+    # ─── Fusion en production ───
+    # Les INSERT IGNORE ne touchent pas les lignes déjà présentes : seuls
+    # les tickets supprimés sont réinjectés dans glpi_db.
+    - name: "Fusionner les tickets restaurés dans la base de production"
+      ansible.builtin.shell: >
+        mysql glpi_db < /tmp/tickets_restore.sql
+      changed_when: true
+      no_log: true
+
+    # ─── Nettoyage ───
+    - name: "Supprimer la base temporaire glpi_restore_tmp"
+      ansible.builtin.command: >
+        mysql -e "DROP DATABASE glpi_restore_tmp;"
+      changed_when: true
+      no_log: true
+
+    - name: "Supprimer le fichier d'export temporaire"
+      ansible.builtin.file:
+        path: /tmp/tickets_restore.sql
+        state: absent
+
+    # ─── Horodatage de fin et RPO effectif ───
+    - name: "Enregistrer l'horodatage de fin (epoch)"
+      ansible.builtin.set_fact:
+        pra_end_epoch: "{{ lookup('ansible.builtin.pipe', 'date +%s') }}"
+
+    - name: "Calculer la durée de la restauration"
+      ansible.builtin.set_fact:
+        pra_duree_s: "{{ pra_end_epoch | int - pra_start_epoch | int }}"
+
+    # Extraction de l'horodatage contenu dans le nom du dump
+    # (glpi_dump_YYYYMMDD_HHMMSS.sql.gz) pour mesurer le RPO effectif.
+    - name: "Extraire l'horodatage du nom du dump"
+      ansible.builtin.set_fact:
+        pra_dump_ts: "{{ pra_target_dump | regex_search('[0-9]{8}_[0-9]{6}') | default('', true) }}"
+
+    - name: "Calculer le RPO effectif (âge du dump utilisé)"
+      ansible.builtin.set_fact:
+        pra_rpo_s: "{{ ((now() - (pra_dump_ts | to_datetime('%Y%m%d_%H%M%S'))).total_seconds()) | int }}"
+      when: pra_dump_ts | length > 0
+
+    - name: "Afficher le bilan de la restauration granulaire"
+      ansible.builtin.debug:
+        msg: >-
+          Restauration granulaire terminée en
+          {{ pra_duree_s | int // 60 }} min {{ pra_duree_s | int % 60 }} s —
+          RPO effectif = âge du dump utilisé :
+          {% if pra_dump_ts | length > 0 -%}
+          {{ pra_rpo_s | int // 60 }} min (dump horodaté {{ pra_dump_ts }})
+          {%- else -%}
+          indéterminé (horodatage absent du nom du dump)
+          {%- endif %}
+
+    - name: "Journaliser la fin de la restauration granulaire"
+      ansible.builtin.shell: >
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] FIN restauration granulaire —
+        durée : {{ pra_duree_s | int // 60 }} min {{ pra_duree_s | int % 60 }} s —
+        dump : {{ pra_target_dump }}"
+        >> /var/log/atlas/pra_restore_granular.log
+      changed_when: true

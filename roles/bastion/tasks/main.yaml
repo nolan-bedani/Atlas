@@ -1,0 +1,8 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: configure.yaml
+- ansible.builtin.import_tasks: ssh_config.yaml
+- ansible.builtin.import_tasks: verify.yaml

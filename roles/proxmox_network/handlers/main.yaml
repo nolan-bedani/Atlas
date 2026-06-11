@@ -1,0 +1,14 @@
+---
+# ══════════════════════════════════════════════
+# proxmox_network — Handlers
+# ══════════════════════════════════════════════
+
+- name: Recharger la configuration réseau
+  ansible.builtin.command:
+    cmd: ifreload -a
+  changed_when: true
+
+- name: Recharger les règles iptables
+  ansible.builtin.shell:
+    cmd: iptables-restore < /etc/iptables/rules.v4
+  changed_when: true

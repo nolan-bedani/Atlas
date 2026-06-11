@@ -1,0 +1,11 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — handlers
+# ══════════════════════════════════════════════
+
+# ─── Service nginx ───
+
+- name: Recharger nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

@@ -1,0 +1,227 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# pra_restore_full.yaml — Restauration complète (perte de VM)
+# RPO/RTO cibles : RPO ≤ 20 min | RTO ≤ 40 min
+# Usage : ansible-playbook pra_restore_full.yaml -i develop/hosts.yaml
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Horodatage de début ───
+- name: "PRA — Horodatage de début"
+  hosts: proxmox_node
+  gather_facts: false
+  tasks:
+    - name: "Enregistrer l'horodatage de début (epoch)"
+      ansible.builtin.set_fact:
+        pra_start_epoch: "{{ lookup('ansible.builtin.pipe', 'date +%s') }}"
+
+    - name: "Créer le répertoire de journalisation PRA"
+      ansible.builtin.file:
+        path: /var/log/atlas
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Journaliser le début de la restauration complète"
+      ansible.builtin.shell: >
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] DÉBUT restauration complète"
+        >> /var/log/atlas/pra_restore_full.log
+      changed_when: true
+
+# ─── Reprovisioning des conteneurs LXC ───
+- name: "PRA — Reprovisioning des LXC"
+  hosts: proxmox_node
+  gather_facts: true
+  roles:
+    - proxmox_provision
+
+# ─── Configuration de base de tous les hôtes ───
+- name: "PRA — Configuration de base (common)"
+  hosts: mgmt:dmz:lan_admin
+  gather_facts: true
+  roles:
+    - common
+
+- name: "PRA — Configuration du bastion"
+  hosts: atlbst01p
+  gather_facts: true
+  roles:
+    - bastion
+
+# ─── Reconstruction des services (ordre de dépendance) ───
+- name: "PRA — Service base de données MariaDB"
+  hosts: atldb01p
+  gather_facts: true
+  roles:
+    - mariadb
+
+- name: "PRA — Service relais SMTP"
+  hosts: atlsmtp01p
+  gather_facts: true
+  roles:
+    - smtp
+
+- name: "PRA — Service applicatif GLPI"
+  hosts: atlapp01p
+  gather_facts: true
+  roles:
+    - glpi
+
+- name: "PRA — Service reverse proxy"
+  hosts: atlrp01p
+  gather_facts: true
+  roles:
+    - reverse_proxy
+
+- name: "PRA — Service supervision Zabbix"
+  hosts: atlzbx01p
+  gather_facts: true
+  roles:
+    - zabbix
+
+- name: "PRA — Agents Zabbix sur tous les hôtes"
+  hosts: mgmt:dmz:lan_admin
+  gather_facts: true
+  roles:
+    - zabbix_agent
+
+- name: "PRA — Service de sauvegarde"
+  hosts: atlbkp01p
+  gather_facts: true
+  roles:
+    - backup
+
+# ─── Restauration des données (base + filestore) ───
+- name: "PRA — Restauration des données"
+  hosts: atldb01p
+  gather_facts: false
+  vars:
+    # Dump à restaurer ; si vide, le dernier dump collecté sur atlbkp01p est utilisé
+    pra_restore_dump: ""
+  tasks:
+    # ─── Sélection du dump à restaurer ───
+    - name: "Déterminer le dernier dump disponible sur atlbkp01p"
+      ansible.builtin.shell: >
+        set -o pipefail;
+        ls -t /var/backups/atlas/db-remote/*.sql.gz | head -1
+      args:
+        executable: /bin/bash
+      delegate_to: atlbkp01p
+      register: pra_last_dump
+      changed_when: false
+      when: pra_restore_dump | length == 0
+
+    - name: "Fixer le chemin du dump retenu"
+      ansible.builtin.set_fact:
+        pra_dump_path: >-
+          {{ pra_restore_dump if pra_restore_dump | length > 0
+             else pra_last_dump.stdout | trim }}
+
+    - name: "Afficher le dump retenu pour la restauration"
+      ansible.builtin.debug:
+        msg: "Dump retenu : {{ pra_dump_path }}"
+
+    # ─── Transfert du dump : atlbkp01p -> atldb01p ───
+    # La clé de sauvegarde n'autorise que atlsvc : on pousse donc le dump
+    # depuis atlbkp01p vers atlsvc@atldb01p, dans /tmp.
+    - name: "Transférer le dump depuis atlbkp01p vers atldb01p"
+      ansible.builtin.shell: >
+        rsync -avz
+        -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=no"
+        "{{ pra_dump_path }}" atlsvc@10.30.0.10:/tmp/restore.sql.gz
+      delegate_to: atlbkp01p
+      changed_when: true
+
+    # ─── Restauration de la base GLPI (accès root via /root/.my.cnf) ───
+    - name: "Restaurer la base glpi_db depuis le dump"
+      ansible.builtin.shell: >
+        set -o pipefail;
+        zcat /tmp/restore.sql.gz | mysql glpi_db
+      args:
+        executable: /bin/bash
+      changed_when: true
+      no_log: true
+
+    - name: "Supprimer le dump temporaire"
+      ansible.builtin.file:
+        path: /tmp/restore.sql.gz
+        state: absent
+
+    # ─── Restauration du filestore GLPI : atlbkp01p -> atlapp01p ───
+    - name: "Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p"
+      ansible.builtin.shell: >
+        rsync -avz
+        -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=no"
+        /var/backups/atlas/filestore/ atlsvc@10.20.0.11:/var/lib/glpi/files/
+      delegate_to: atlbkp01p
+      changed_when: true
+
+    - name: "Remettre les permissions www-data sur le filestore GLPI"
+      ansible.builtin.file:
+        path: /var/lib/glpi/files
+        state: directory
+        owner: www-data
+        group: www-data
+        recurse: true
+      delegate_to: atlapp01p
+
+# ─── Vérifications post-restauration ───
+- name: "PRA — Vérification de l'application GLPI"
+  hosts: atlapp01p
+  gather_facts: false
+  tasks:
+    - name: "Vérifier que GLPI répond en HTTP"
+      ansible.builtin.uri:
+        url: "http://10.20.0.11/"
+        status_code: [200, 302]
+      register: pra_check_glpi
+      retries: 5
+      delay: 10
+      until: pra_check_glpi.status in [200, 302]
+
+- name: "PRA — Vérification de la base de données"
+  hosts: atldb01p
+  gather_facts: false
+  tasks:
+    - name: "Compter les tickets GLPI restaurés"
+      ansible.builtin.command: mysql -e "SELECT COUNT(*) FROM glpi_db.glpi_tickets;"
+      register: pra_check_tickets
+      changed_when: false
+
+    - name: "Afficher le nombre de tickets restaurés"
+      ansible.builtin.debug:
+        msg: "Vérification base : {{ pra_check_tickets.stdout_lines }}"
+
+- name: "PRA — Vérification du serveur Zabbix"
+  hosts: atlzbx01p
+  gather_facts: false
+  tasks:
+    - name: "Vérifier que le port 10051 du serveur Zabbix est ouvert"
+      ansible.builtin.wait_for:
+        port: 10051
+        host: 10.30.0.12
+        timeout: 60
+
+# ─── Horodatage de fin et calcul du RTO ───
+- name: "PRA — Horodatage de fin et RTO"
+  hosts: proxmox_node
+  gather_facts: false
+  tasks:
+    - name: "Enregistrer l'horodatage de fin (epoch)"
+      ansible.builtin.set_fact:
+        pra_end_epoch: "{{ lookup('ansible.builtin.pipe', 'date +%s') }}"
+
+    - name: "Calculer la durée totale de la restauration"
+      ansible.builtin.set_fact:
+        pra_duree_s: "{{ pra_end_epoch | int - hostvars['proxmox_node'].pra_start_epoch | int }}"
+
+    - name: "Afficher le RTO mesuré"
+      ansible.builtin.debug:
+        msg: "RTO mesuré : {{ pra_duree_s | int // 60 }} minutes {{ pra_duree_s | int % 60 }} secondes (cible : 40 minutes)"
+
+    - name: "Journaliser la fin de la restauration complète"
+      ansible.builtin.shell: >
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] FIN restauration complète —
+        RTO mesuré : {{ pra_duree_s | int // 60 }} min {{ pra_duree_s | int % 60 }} s"
+        >> /var/log/atlas/pra_restore_full.log
+      changed_when: true

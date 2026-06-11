@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — démarrage des conteneurs LXC
+# ══════════════════════════════════════════════
+
+# ─── Démarrage des conteneurs (idempotent : state started) ───
+
+- name: Démarrer les conteneurs LXC du projet Atlas
+  community.general.proxmox:
+    api_host: "{{ vault_proxmox_host }}"
+    api_user: "{{ vault_proxmox_user }}"
+    api_password: "{{ vault_proxmox_password }}"
+    validate_certs: false
+    vmid: "{{ conteneur.vmid }}"
+    hostname: "{{ conteneur.hostname }}"
+    state: started
+  loop: "{{ proxmox_containers }}"
+  loop_control:
+    loop_var: conteneur
+    label: "{{ conteneur.hostname }}"

@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Inventaire des conteneurs LXC Atlas ───
+bastion_atlas_hosts:
+  - { name: atlbst01p,  ip: 10.90.0.10 }
+  - { name: atlrp01p,   ip: 10.20.0.10 }
+  - { name: atlapp01p,  ip: 10.20.0.11 }
+  - { name: atldb01p,   ip: 10.30.0.10 }
+  - { name: atlsmtp01p, ip: 10.30.0.11 }
+  - { name: atlzbx01p,  ip: 10.30.0.12 }
+  - { name: atlbkp01p,  ip: 10.30.0.13 }
+
+# ─── Sous-réseau autorisé à joindre le bastion ───
+bastion_allowed_subnet: "10.90.0.0/24"
+
+# ─── Mode debug ───
+bastion_debug: false

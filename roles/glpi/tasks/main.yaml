@@ -1,0 +1,10 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: php.yaml
+- ansible.builtin.import_tasks: download.yaml
+- ansible.builtin.import_tasks: configure.yaml
+- ansible.builtin.import_tasks: service.yaml

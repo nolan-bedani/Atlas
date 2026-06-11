@@ -1,0 +1,10 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: secure.yaml
+- ansible.builtin.import_tasks: databases.yaml
+- ansible.builtin.import_tasks: backup_script.yaml
+- ansible.builtin.import_tasks: service.yaml

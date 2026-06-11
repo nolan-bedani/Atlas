@@ -1,0 +1,21 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — activation du service
+# ══════════════════════════════════════════════
+
+# ─── Démarrage et activation du service ───
+
+- name: Démarrer et activer l'agent Zabbix 2
+  ansible.builtin.systemd_service:
+    name: zabbix-agent2
+    state: started
+    enabled: true
+
+# ─── Débogage ───
+
+- name: Afficher un résumé de la configuration de l'agent Zabbix
+  ansible.builtin.debug:
+    msg: >-
+      Agent Zabbix 2 actif sur {{ inventory_hostname }} —
+      serveur de supervision : {{ zabbix_agent_server_ip }}
+  when: zabbix_agent_debug

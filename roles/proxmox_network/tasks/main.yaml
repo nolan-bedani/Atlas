@@ -1,0 +1,11 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_network — Orchestrateur
+# Configuration réseau VLAN de l'hôte Proxmox :
+# bridge VLAN-aware, sous-interfaces passerelles,
+# routage NAT iptables persistant.
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: vlan_bridge.yaml
+- ansible.builtin.import_tasks: vlan_interfaces.yaml
+- ansible.builtin.import_tasks: iptables_rules.yaml

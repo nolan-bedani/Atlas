@@ -1,0 +1,10 @@
+# ══════════════════════════════════════════════
+# Rôle : bastion — durcissement sshd supplémentaire
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Restriction des utilisateurs autorisés ───
+AllowUsers atlsvc root
+
+# ─── Bannière d'avertissement ───
+Banner /etc/ssh/banner

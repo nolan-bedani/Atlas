@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — attente de la disponibilité SSH
+# ══════════════════════════════════════════════
+
+# ─── Attente du port SSH sur chaque conteneur ───
+
+- name: Attendre que le port SSH soit joignable sur chaque conteneur
+  ansible.builtin.wait_for:
+    host: "{{ conteneur.ip }}"
+    port: 22
+    timeout: 120
+    delay: 5
+  loop: "{{ proxmox_containers }}"
+  loop_control:
+    loop_var: conteneur
+    label: "{{ conteneur.hostname }}"

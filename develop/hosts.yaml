@@ -1,0 +1,45 @@
+---
+# ══════════════════════════════════════════════
+# Inventaire Projet Atlas — PRA/DR Helpdesk
+# ══════════════════════════════════════════════
+all:
+  children:
+    # ─── Hôte Proxmox (control node / hyperviseur) ───
+    proxmox:
+      hosts:
+        proxmox_node:
+          ansible_host: "138.201.135.108"
+          ansible_user: root
+          ansible_ssh_private_key_file: /root/.ssh/atlas_ed25519
+
+    # ─── VLAN 90 — Management (bastion) ───
+    mgmt:
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      hosts:
+        atlbst01p:
+          ansible_host: 10.90.0.10
+
+    # ─── VLAN 20 — DMZ (reverse proxy + GLPI) ───
+    dmz:
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@10.90.0.10'
+      hosts:
+        atlrp01p:
+          ansible_host: 10.20.0.10
+        atlapp01p:
+          ansible_host: 10.20.0.11
+
+    # ─── VLAN 30 — LAN ADMIN (BDD, SMTP, supervision, backup) ───
+    lan_admin:
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@10.90.0.10'
+      hosts:
+        atldb01p:
+          ansible_host: 10.30.0.10
+        atlsmtp01p:
+          ansible_host: 10.30.0.11
+        atlzbx01p:
+          ansible_host: 10.30.0.12
+        atlbkp01p:
+          ansible_host: 10.30.0.13

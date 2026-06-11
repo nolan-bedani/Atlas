@@ -1,0 +1,16 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Adresse d'écoute du serveur MariaDB ───
+mariadb_bind_address: "10.30.0.10"
+
+# ─── Répertoire de stockage des sauvegardes ───
+mariadb_backup_dir: "/var/backups/atlas/db"
+
+# ─── Nombre de dumps conservés (rotation) ───
+mariadb_backup_retention: 7
+
+# ─── Mode debug ───
+mariadb_debug: false

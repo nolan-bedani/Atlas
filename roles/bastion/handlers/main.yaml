@@ -1,0 +1,12 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — handlers
+# ══════════════════════════════════════════════
+
+# ─── Service SSH ───
+
+# Sous Debian, le service sshd s'appelle « ssh »
+- name: Redémarrer sshd (bastion)
+  ansible.builtin.service:
+    name: ssh
+    state: restarted

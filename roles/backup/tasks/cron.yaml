@@ -1,0 +1,29 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — planification cron des sauvegardes
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Collecte des dumps avant la sauvegarde du filestore ───
+- name: "Planifier la collecte des dumps MariaDB à 02h30"
+  ansible.builtin.cron:
+    name: "Collecte des dumps MariaDB 02h30"
+    user: root
+    minute: "30"
+    hour: "2"
+    job: "{{ backup_scripts_dir }}/collect_dumps.sh"
+    state: present
+
+- name: "Planifier la sauvegarde du filestore GLPI à 03h00"
+  ansible.builtin.cron:
+    name: "Sauvegarde filestore GLPI 03h00"
+    user: root
+    minute: "0"
+    hour: "3"
+    job: "{{ backup_scripts_dir }}/backup_filestore.sh"
+    state: present
+
+# ─── Diagnostic (mode debug) ───
+- name: "Afficher la planification cron"
+  ansible.builtin.debug:
+    msg: "Cron : collect_dumps.sh à 02h30, backup_filestore.sh à 03h00 (utilisateur root)"
+  when: backup_debug | bool

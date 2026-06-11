@@ -1,0 +1,26 @@
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — configuration de l'agent Zabbix 2
+# Fichier géré par Ansible — toute modification manuelle sera écrasée
+# ══════════════════════════════════════════════
+
+# ─── Serveur de supervision ───
+Server={{ zabbix_agent_server_ip }}
+ServerActive={{ zabbix_agent_server_ip }}
+
+# ─── Identité de l'hôte ───
+Hostname={{ inventory_hostname }}
+
+# ─── Journalisation ───
+LogFile=/var/log/zabbix/zabbix_agent2.log
+LogFileSize=10
+
+# ─── Processus et sockets ───
+PidFile=/run/zabbix/zabbix_agent2.pid
+ControlSocket=/run/zabbix/agent.sock
+
+# ─── Inclusions ───
+Include=/etc/zabbix/zabbix_agent2.d/*.conf
+
+# Rappel : les items system.uptime, vm.memory.size, vfs.fs.size[/,pfree]
+# et net.tcp.port[,22] sont des checks natifs de l'agent, configurés côté
+# serveur Zabbix — aucune configuration supplémentaire n'est requise ici.

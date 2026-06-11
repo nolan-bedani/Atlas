@@ -1,0 +1,18 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — variables par défaut
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Source filestore GLPI (atlapp01p) ───
+backup_glpi_host: "10.20.0.11"
+backup_glpi_filestore: "/var/lib/glpi/files"
+
+# ─── Source dumps MariaDB (atldb01p) ───
+backup_db_host: "10.30.0.10"
+backup_db_dumps_dir: "/var/backups/atlas/db"
+
+# ─── Rétention des dumps collectés (en jours) ───
+backup_retention_days: 7
+
+# ─── Mode debug (affiche les tâches de diagnostic) ───
+backup_debug: false

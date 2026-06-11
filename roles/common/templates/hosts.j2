@@ -1,0 +1,18 @@
+# ══════════════════════════════════════════════
+# Rôle : common — fichier /etc/hosts Atlas
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Boucle locale ───
+127.0.0.1 localhost
+127.0.1.1 {{ inventory_hostname }}
+
+# ─── IPv6 ───
+::1 localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+# ─── Conteneurs LXC Atlas ───
+{% for host in common_atlas_hosts %}
+{{ host.ip }} {{ host.name }}.{{ common_atlas_domain }} {{ host.name }}
+{% endfor %}

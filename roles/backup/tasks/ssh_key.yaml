@@ -1,0 +1,33 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — clé SSH dédiée aux sauvegardes
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Génération de la paire de clés ed25519 (idempotent) ───
+- name: "Générer la paire de clés ed25519 de sauvegarde pour root"
+  community.crypto.openssh_keypair:
+    path: "{{ backup_ssh_key_path }}"
+    type: ed25519
+    owner: root
+    group: root
+    mode: "0600"
+    comment: "atlas-backup@atlbkp01p"
+  register: backup_ssh_keypair
+
+# ─── Diagnostic (mode debug) ───
+- name: "Afficher la clé publique générée"
+  ansible.builtin.debug:
+    msg: "Clé publique de sauvegarde : {{ backup_ssh_keypair.public_key }}"
+  when: backup_debug | bool
+
+# ─── Autorisation de la clé sur les hôtes sources ───
+- name: "Autoriser la clé de sauvegarde pour atlsvc sur les hôtes sources"
+  ansible.builtin.authorized_key:
+    user: "{{ backup_remote_user }}"
+    key: "{{ backup_ssh_keypair.public_key }}"
+    comment: "atlas-backup@atlbkp01p"
+    state: present
+  delegate_to: "{{ item }}"
+  loop:
+    - atlapp01p
+    - atldb01p

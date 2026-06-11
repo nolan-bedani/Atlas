@@ -1,0 +1,39 @@
+---
+# ══════════════════════════════════════════════
+# proxmox_network — Routage NAT iptables persistant
+# ══════════════════════════════════════════════
+
+# ─── Activation du routage IP ───
+- name: "Activer net.ipv4.ip_forward (persistant)"
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-atlas-routing.conf
+    reload: true
+
+# ─── Installation du paquet de persistance ───
+- name: "Installer iptables-persistent"
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+# ─── Déploiement des règles MASQUERADE + FORWARD ───
+- name: "Déployer les règles iptables Atlas (/etc/iptables/rules.v4)"
+  ansible.builtin.template:
+    src: rules.v4.j2
+    dest: /etc/iptables/rules.v4
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger les règles iptables
+
+# ─── Debug ───
+- name: "Debug — interface physique de sortie NAT"
+  ansible.builtin.debug:
+    var: proxmox_network_physical_iface
+  when: proxmox_network_debug

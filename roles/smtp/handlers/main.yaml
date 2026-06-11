@@ -1,0 +1,12 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — gestionnaires (handlers)
+# ══════════════════════════════════════════════
+
+- name: Recharger postfix
+  ansible.builtin.service:
+    name: postfix
+    state: reloaded
+
+- name: Reconstruire les alias
+  ansible.builtin.command: newaliases

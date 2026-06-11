@@ -1,0 +1,44 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — comptes de service et sudo
+# ══════════════════════════════════════════════
+
+# ─── Groupe et utilisateur de service ───
+
+- name: Créer le groupe de service atlsvc
+  ansible.builtin.group:
+    name: atlsvc
+    gid: 2000
+    state: present
+
+- name: Créer l'utilisateur de service atlsvc
+  ansible.builtin.user:
+    name: atlsvc
+    uid: 2000
+    group: atlsvc
+    shell: /bin/bash
+    home: /home/atlsvc
+    create_home: true
+    state: present
+
+# ─── Clé SSH autorisée ───
+
+- name: Déployer la clé publique SSH autorisée pour atlsvc
+  ansible.builtin.authorized_key:
+    user: atlsvc
+    key: "{{ common_ssh_pubkey }}"
+    state: present
+
+# ─── Délégation sudo restreinte ───
+
+- name: Déployer la règle sudo NOPASSWD limitée pour atlsvc
+  ansible.builtin.copy:
+    content: |
+      # Délégation sudo restreinte — Projet Atlas
+      # atlsvc ne peut que redémarrer/recharger des services via systemctl
+      atlsvc ALL=(root) NOPASSWD: /bin/systemctl restart *, /bin/systemctl reload *
+    dest: /etc/sudoers.d/atlsvc
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

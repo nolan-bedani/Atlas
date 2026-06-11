@@ -1,0 +1,32 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — installation des paquets et arborescence
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Installation des paquets requis ───
+- name: "Installer rsync"
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── Création de l'arborescence de sauvegarde ───
+- name: "Créer les répertoires de sauvegarde et de journalisation"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ backup_scripts_dir }}"
+    - "{{ backup_filestore_dest }}"
+    - "{{ backup_db_remote_dest }}"
+    - "{{ backup_log_dir }}"
+
+# ─── Diagnostic (mode debug) ───
+- name: "Afficher l'arborescence créée"
+  ansible.builtin.debug:
+    msg: "Répertoires prêts : {{ backup_scripts_dir }}, {{ backup_filestore_dest }}, {{ backup_db_remote_dest }}, {{ backup_log_dir }}"
+  when: backup_debug | bool

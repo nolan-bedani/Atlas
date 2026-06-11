@@ -1,0 +1,35 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — configuration de l'agent
+# ══════════════════════════════════════════════
+
+# ─── Configuration principale de l'agent ───
+
+- name: Déployer la configuration de l'agent Zabbix 2
+  ansible.builtin.template:
+    src: zabbix_agent2.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Redémarrer zabbix-agent2
+
+# ─── Paramètres utilisateur Atlas ───
+
+- name: Déployer les UserParameters Atlas
+  ansible.builtin.template:
+    src: atlas_userparams.conf.j2
+    dest: /etc/zabbix/zabbix_agent2.d/atlas_userparams.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Redémarrer zabbix-agent2
+
+# ─── Pare-feu UFW ───
+
+- name: Autoriser le serveur Zabbix à interroger l'agent (port 10050)
+  community.general.ufw:
+    rule: allow
+    port: "10050"
+    proto: tcp
+    from_ip: "{{ zabbix_agent_server_ip }}"

@@ -1,0 +1,53 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — certificat TLS auto-signé
+# ══════════════════════════════════════════════
+
+# ─── Répertoire de stockage TLS ───
+
+- name: Créer le répertoire TLS de nginx
+  ansible.builtin.file:
+    path: "{{ reverse_proxy_tls_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ─── Clé privée RSA 4096 bits ───
+
+- name: Générer la clé privée RSA
+  community.crypto.openssl_privatekey:
+    path: "{{ reverse_proxy_tls_dir }}/atlas.key"
+    type: RSA
+    size: 4096
+    owner: root
+    group: root
+    mode: "0600"
+
+# ─── Demande de signature de certificat (CSR) ───
+
+- name: Générer la CSR avec les SAN internes Atlas
+  community.crypto.openssl_csr:
+    path: "{{ reverse_proxy_tls_dir }}/atlas.csr"
+    privatekey_path: "{{ reverse_proxy_tls_dir }}/atlas.key"
+    common_name: "atlas.internal"
+    subject_alt_name:
+      - "DNS:atlrp01p.atlas.local"
+      - "DNS:atlas.internal"
+    owner: root
+    group: root
+    mode: "0644"
+
+# ─── Certificat auto-signé (validité 10 ans) ───
+
+- name: Générer le certificat auto-signé
+  community.crypto.x509_certificate:
+    path: "{{ reverse_proxy_tls_dir }}/atlas.crt"
+    csr_path: "{{ reverse_proxy_tls_dir }}/atlas.csr"
+    privatekey_path: "{{ reverse_proxy_tls_dir }}/atlas.key"
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx

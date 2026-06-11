@@ -1,0 +1,24 @@
+# ══════════════════════════════════════════════
+# Rôle : common — configuration sshd durcie
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Réseau ───
+Port 22
+
+# ─── Authentification ───
+{# IMPORTANT : 'prohibit-password' (et PAS 'no') pour les hôtes non-bastion,
+   sinon Ansible perdrait l'accès root par clé SSH via le bastion. #}
+PermitRootLogin {{ 'yes' if inventory_hostname == 'atlbst01p' else 'prohibit-password' }}
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+UsePAM yes
+
+# ─── Durcissement ───
+X11Forwarding no
+# AllowTcpForwarding doit rester actif : nécessaire pour le ProxyJump via le bastion
+AllowTcpForwarding yes
+
+# ─── Sous-systèmes ───
+Subsystem sftp /usr/lib/openssh/sftp-server

@@ -1,0 +1,25 @@
+---
+# ══════════════════════════════════════════════
+# Vault Projet Atlas — SECRETS
+# ══════════════════════════════════════════════
+# ⚠️  Ce fichier est EXCLU du Git (.gitignore).
+# ⚠️  Après avoir renseigné les valeurs, le chiffrer avec :
+#     ansible-vault encrypt develop/group_vars/all/vault.yaml
+#     (AES-256, mot de passe dans .vault_pass — lui aussi gitignored)
+
+# ─── API Proxmox ───
+vault_proxmox_host: "138.201.135.108"
+vault_proxmox_user: "root@pam"
+vault_proxmox_password: "CHANGE_ME"
+
+# ─── MariaDB ───
+vault_mariadb_root_password: "CHANGE_ME"
+
+# ─── GLPI (connexion base de données) ───
+vault_glpi_db_host: "10.30.0.10"
+vault_glpi_db_name: "glpi_db"
+vault_glpi_db_user: "glpi_user"
+vault_glpi_db_password: "CHANGE_ME"
+
+# ─── Zabbix (connexion base de données) ───
+vault_zabbix_db_password: "CHANGE_ME"

@@ -1,0 +1,22 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Serveur Zabbix ───
+
+# Adresse IP du serveur Zabbix (atlzbx01p)
+zabbix_agent_server_ip: "10.30.0.12"
+
+# ─── Supervision GLPI ───
+
+# Adresse du portail GLPI supervisé par le UserParameter atlas.glpi.http
+zabbix_agent_glpi_url: "10.20.0.11"
+
+# ─── Dépôt Zabbix ───
+
+zabbix_agent_release_deb_url: "https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.0+debian12_all.deb"
+
+# ─── Débogage ───
+
+zabbix_agent_debug: false

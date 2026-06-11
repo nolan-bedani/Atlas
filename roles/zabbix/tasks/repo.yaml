@@ -1,0 +1,26 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — dépôt officiel Zabbix
+# ══════════════════════════════════════════════
+
+# ─── Téléchargement du paquet zabbix-release ───
+
+- name: Télécharger le paquet zabbix-release
+  ansible.builtin.get_url:
+    url: "{{ zabbix_release_deb_url }}"
+    dest: /tmp/zabbix-release.deb
+    mode: "0644"
+
+# ─── Installation du dépôt ───
+
+# L'installation d'un paquet .deb déjà présent est idempotente par nature
+- name: Installer le paquet zabbix-release
+  ansible.builtin.apt:
+    deb: /tmp/zabbix-release.deb
+
+# ─── Mise à jour du cache APT ───
+
+- name: Mettre à jour le cache APT
+  ansible.builtin.apt:
+    update_cache: true
+  changed_when: false

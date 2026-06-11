@@ -1,0 +1,36 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — gestion des paquets de base
+# ══════════════════════════════════════════════
+
+# ─── Mise à jour du système ───
+
+- name: Mettre à jour le cache APT et appliquer les mises à jour (dist-upgrade)
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    cache_valid_time: 3600
+
+# ─── Installation des paquets essentiels ───
+
+- name: Installer les paquets de base
+  ansible.builtin.apt:
+    name:
+      - curl
+      - vim
+      - htop
+      - ca-certificates
+      - gnupg
+      - python3-apt
+      - ufw
+    state: present
+
+# ─── Suppression des paquets non sécurisés ───
+
+- name: Supprimer les paquets obsolètes et non sécurisés
+  ansible.builtin.apt:
+    name:
+      - telnet
+      - rsh-client
+    state: absent
+    purge: true

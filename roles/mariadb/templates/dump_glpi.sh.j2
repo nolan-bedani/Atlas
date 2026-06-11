@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════
+# Rôle : mariadb — sauvegarde de la base GLPI
+# Fichier géré par Ansible — ne pas modifier manuellement
+# ══════════════════════════════════════════════
+set -euo pipefail
+
+# ─── Variables ───
+BACKUP_DIR="{{ mariadb_backup_dir }}"
+RETENTION="{{ mariadb_backup_retention }}"
+LOG_FILE="/var/log/atlas/dump_glpi.log"
+LOCK_FILE="/var/run/dump_glpi.lock"
+
+# ─── Fonction de journalisation horodatée ───
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE}"
+}
+
+# ─── Verrou : éviter les exécutions simultanées ───
+exec 9>"${LOCK_FILE}"
+if ! flock -n 9; then
+    log "ERREUR : un dump est déjà en cours d'exécution, abandon."
+    exit 1
+fi
+
+# ─── Préparation ───
+DEBUT=$(date +%s)
+HORODATAGE=$(date +%Y%m%d_%H%M%S)
+FICHIER="${BACKUP_DIR}/glpi_dump_${HORODATAGE}.sql.gz"
+
+log "Début du dump de la base glpi_db vers ${FICHIER}"
+
+# ─── Dump compressé (authentification via /root/.my.cnf) ───
+# PIPESTATUS vérifié : un échec de mysqldump rend le code retour non nul
+# (visible par la supervision Zabbix).
+set +e
+mysqldump --single-transaction --routines --triggers --flush-logs glpi_db | gzip > "${FICHIER}"
+RC_DUMP=${PIPESTATUS[0]}
+RC_GZIP=${PIPESTATUS[1]}
+set -e
+
+if [ "${RC_DUMP}" -ne 0 ] || [ "${RC_GZIP}" -ne 0 ]; then
+    log "ERREUR : échec du dump (mysqldump=${RC_DUMP}, gzip=${RC_GZIP}), fichier supprimé."
+    rm -f "${FICHIER}"
+    exit 1
+fi
+
+# ─── Bilan ───
+DUREE=$(( $(date +%s) - DEBUT ))
+TAILLE=$(du -h "${FICHIER}" | cut -f1)
+log "Fin du dump : ${FICHIER} (taille : ${TAILLE}, durée : ${DUREE}s)"
+
+# ─── Rotation : conserver les {{ mariadb_backup_retention }} derniers dumps ───
+ls -t "${BACKUP_DIR}"/glpi_dump_*.sql.gz | tail -n +$((RETENTION + 1)) | xargs -r rm -f
+log "Rotation effectuée : conservation des ${RETENTION} derniers dumps."
+
+exit 0

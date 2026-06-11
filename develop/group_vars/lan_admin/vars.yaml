@@ -1,0 +1,9 @@
+---
+# ══════════════════════════════════════════════
+# Variables groupe lan_admin — VLAN 30 (10.30.0.0/24)
+# ══════════════════════════════════════════════
+
+# ─── Réseau ───
+atlas_group_vlan_id: 30
+atlas_group_subnet: "10.30.0.0/24"
+atlas_group_gateway: "10.30.0.1"

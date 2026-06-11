@@ -1,0 +1,84 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — base de données distante (atldb01p)
+# ══════════════════════════════════════════════
+
+# L'authentification root mysql sur atldb01p s'appuie sur /root/.my.cnf
+# (déployé par le rôle mariadb). community.mysql est proscrit : on utilise
+# le client mysql en ligne de commande avec une idempotence stricte.
+
+# ─── Création de la base de données ───
+
+- name: Vérifier l'existence de la base de données zabbix
+  ansible.builtin.command: mysql -N -e "SHOW DATABASES LIKE 'zabbix';"
+  register: zabbix_db_presente
+  changed_when: false
+  delegate_to: atldb01p
+
+- name: Créer la base de données zabbix
+  ansible.builtin.command: >
+    mysql -e "CREATE DATABASE IF NOT EXISTS zabbix
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
+  when: "'zabbix' not in zabbix_db_presente.stdout"
+  changed_when: "'zabbix' not in zabbix_db_presente.stdout"
+  delegate_to: atldb01p
+
+# ─── Création de l'utilisateur applicatif ───
+
+# Le serveur Zabbix (10.30.0.12) se connecte à la BDD distante :
+# l'utilisateur doit donc être zabbix@'10.30.0.12' et non @localhost.
+- name: Vérifier l'existence de l'utilisateur MySQL zabbix
+  ansible.builtin.command: >
+    mysql -N -e "SELECT COUNT(*) FROM mysql.user
+    WHERE user='zabbix' AND host='10.30.0.12';"
+  register: zabbix_db_user_present
+  changed_when: false
+  delegate_to: atldb01p
+
+- name: Créer l'utilisateur MySQL zabbix et lui accorder les privilèges
+  ansible.builtin.shell: >
+    mysql -e "CREATE USER 'zabbix'@'10.30.0.12'
+    IDENTIFIED BY '{{ vault_zabbix_db_password }}';
+    GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'10.30.0.12';
+    FLUSH PRIVILEGES;"
+  when: zabbix_db_user_present.stdout | int == 0
+  no_log: true
+  delegate_to: atldb01p
+
+# ─── Vérification de l'import du schéma ───
+
+- name: Compter les tables existantes dans la base zabbix
+  ansible.builtin.command: >
+    mysql -N -e "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='zabbix';"
+  register: zabbix_tables_count
+  changed_when: false
+  delegate_to: atldb01p
+
+# ─── Import du schéma initial ───
+
+# Le schéma contient des fonctions stockées : la création de fonctions
+# doit être autorisée temporairement le temps de l'import.
+- name: Activer temporairement log_bin_trust_function_creators
+  ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+  when: zabbix_tables_count.stdout | int == 0
+  delegate_to: atldb01p
+
+# Les scripts SQL sont présents sur atlzbx01p (paquet zabbix-sql-scripts) :
+# l'import s'effectue depuis atlzbx01p vers la BDD distante.
+- name: Importer le schéma initial de la base zabbix
+  ansible.builtin.shell: >
+    set -o pipefail &&
+    zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz |
+    mysql -h 10.30.0.10 -u zabbix -p"$ZBX_DB_PASS" zabbix
+  args:
+    executable: /bin/bash
+  environment:
+    ZBX_DB_PASS: "{{ vault_zabbix_db_password }}"
+  when: zabbix_tables_count.stdout | int == 0
+  no_log: true
+
+- name: Désactiver log_bin_trust_function_creators après l'import
+  ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+  when: zabbix_tables_count.stdout | int == 0
+  delegate_to: atldb01p

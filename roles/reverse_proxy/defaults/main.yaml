@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Backend GLPI (atlapp01p) ───
+reverse_proxy_backend_ip: "10.20.0.11"
+reverse_proxy_backend_port: 80
+
+# ─── Nom public du service ───
+reverse_proxy_server_name: "atlas.internal"
+
+# ─── Répertoire des certificats TLS ───
+reverse_proxy_tls_dir: "/etc/nginx/ssl"
+
+# ─── Mode debug ───
+reverse_proxy_debug: false

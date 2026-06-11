@@ -1,0 +1,13 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — création des conteneurs LXC
+# ══════════════════════════════════════════════
+
+# ─── Boucle de création des conteneurs ───
+
+- name: Créer chaque conteneur LXC du projet Atlas
+  ansible.builtin.include_tasks: create_lxc_item.yaml
+  loop: "{{ proxmox_containers }}"
+  loop_control:
+    loop_var: conteneur
+    label: "{{ conteneur.hostname }}"

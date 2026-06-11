@@ -1,0 +1,60 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — sécurisation du serveur
+# ══════════════════════════════════════════════
+
+# ─── Mot de passe root ───
+- name: Définir le mot de passe root MariaDB (première exécution uniquement)
+  ansible.builtin.shell: mysqladmin -u root password '{{ vault_mariadb_root_password }}'
+  args:
+    creates: /root/.my.cnf
+  no_log: true
+
+- name: Déployer le fichier d'authentification /root/.my.cnf
+  ansible.builtin.template:
+    src: my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+# ─── Configuration serveur Atlas ───
+- name: Créer le répertoire des journaux binaires /var/log/mysql
+  ansible.builtin.file:
+    path: /var/log/mysql
+    state: directory
+    owner: mysql
+    group: adm
+    mode: "0750"
+
+- name: Déployer la configuration serveur 99-atlas-server.cnf
+  ansible.builtin.template:
+    src: 99-atlas-server.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-atlas-server.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Redémarrer mariadb
+
+# ─── Suppression des utilisateurs anonymes ───
+- name: Compter les utilisateurs anonymes
+  ansible.builtin.command: mysql -N -B -e "SELECT COUNT(*) FROM mysql.global_priv WHERE User='';"
+  register: mariadb_anonymes
+  changed_when: false
+
+- name: Supprimer les utilisateurs anonymes
+  ansible.builtin.shell: mysql -N -e "DELETE FROM mysql.global_priv WHERE User=''; FLUSH PRIVILEGES;"
+  when: (mariadb_anonymes.stdout | trim | int) > 0
+  changed_when: true
+
+# ─── Suppression de la base de test ───
+- name: Vérifier l'existence de la base de test
+  ansible.builtin.command: mysql -N -B -e "SHOW DATABASES LIKE 'test';"
+  register: mariadb_base_test
+  changed_when: false
+
+- name: Supprimer la base de test
+  ansible.builtin.command: mysql -e "DROP DATABASE IF EXISTS test;"
+  when: mariadb_base_test.stdout | trim | length > 0
+  changed_when: true

@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — gestion du service nginx
+# ══════════════════════════════════════════════
+
+# ─── Activation et démarrage de nginx ───
+
+- name: Activer et démarrer le service nginx
+  ansible.builtin.systemd_service:
+    name: nginx
+    enabled: true
+    state: started
+  register: reverse_proxy_nginx_service
+
+# ─── Affichage de débogage ───
+
+- name: Afficher l'état du service nginx
+  ansible.builtin.debug:
+    var: reverse_proxy_nginx_service
+  when: reverse_proxy_debug

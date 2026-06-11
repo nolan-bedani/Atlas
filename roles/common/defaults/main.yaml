@@ -1,0 +1,23 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Clé publique SSH du compte d'administration ───
+common_ssh_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGExy+C98JHFxEVLa3pi7P3EGdCDLHcsmKYpIldns2j atladm@atlas"
+
+# ─── Domaine interne Atlas ───
+common_atlas_domain: "atlas.local"
+
+# ─── Inventaire des conteneurs LXC Atlas ───
+common_atlas_hosts:
+  - { name: atlbst01p,  ip: 10.90.0.10 }
+  - { name: atlrp01p,   ip: 10.20.0.10 }
+  - { name: atlapp01p,  ip: 10.20.0.11 }
+  - { name: atldb01p,   ip: 10.30.0.10 }
+  - { name: atlsmtp01p, ip: 10.30.0.11 }
+  - { name: atlzbx01p,  ip: 10.30.0.12 }
+  - { name: atlbkp01p,  ip: 10.30.0.13 }
+
+# ─── Mode debug ───
+common_debug: false

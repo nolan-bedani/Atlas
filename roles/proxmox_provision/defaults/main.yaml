@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Clé publique SSH injectée dans les conteneurs ───
+proxmox_provision_ssh_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGExy+C98JHFxEVLa3pi7P3EGdCDLHcsmKYpIldns2j atladm@atlas"
+
+# ─── Définition des conteneurs LXC du projet Atlas ───
+proxmox_containers:
+  - { vmid: 200, hostname: atlbst01p,  ip: 10.90.0.10, gw: 10.90.0.1, vlan: 90, role: "Bastion SSH",         cores: 1, memory: 512,  disk: 4  }
+  - { vmid: 201, hostname: atlrp01p,   ip: 10.20.0.10, gw: 10.20.0.1, vlan: 20, role: "Reverse Proxy Nginx", cores: 1, memory: 512,  disk: 4  }
+  - { vmid: 202, hostname: atlapp01p,  ip: 10.20.0.11, gw: 10.20.0.1, vlan: 20, role: "GLPI PHP-FPM",        cores: 2, memory: 1024, disk: 8  }
+  - { vmid: 203, hostname: atldb01p,   ip: 10.30.0.10, gw: 10.30.0.1, vlan: 30, role: "MariaDB",             cores: 2, memory: 1024, disk: 10 }
+  - { vmid: 204, hostname: atlsmtp01p, ip: 10.30.0.11, gw: 10.30.0.1, vlan: 30, role: "SMTP Relay Postfix",  cores: 1, memory: 512,  disk: 4  }
+  - { vmid: 205, hostname: atlzbx01p,  ip: 10.30.0.12, gw: 10.30.0.1, vlan: 30, role: "Zabbix Server",       cores: 2, memory: 1024, disk: 8  }
+  - { vmid: 206, hostname: atlbkp01p,  ip: 10.30.0.13, gw: 10.30.0.1, vlan: 30, role: "Backup",              cores: 1, memory: 512,  disk: 8  }
+
+# ─── Mode debug du rôle ───
+proxmox_provision_debug: false
