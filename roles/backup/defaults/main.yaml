@@ -11,6 +11,9 @@ backup_glpi_filestore: "/var/lib/glpi/files"
 backup_db_host: "10.30.0.10"
 backup_db_dumps_dir: "/var/backups/atlas/db"
 
+# ─── IP du serveur de sauvegarde (source des rsync, pour UFW) ───
+backup_local_ip: "10.30.0.13"
+
 # ─── Rétention des dumps collectés (en jours) ───
 backup_retention_days: 7
 
