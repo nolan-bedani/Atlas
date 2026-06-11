@@ -9,7 +9,9 @@ mydomain = atlas.local
 myorigin = $mydomain
 
 # ─── Interfaces et protocoles ───
-inet_interfaces = loopback-only, {{ smtp_listen_ip }}
+# NB : « loopback-only » est exclusif en Postfix — il ne peut pas être
+# combiné avec une adresse. On liste donc explicitement 127.0.0.1 + l'IP.
+inet_interfaces = 127.0.0.1, {{ smtp_listen_ip }}
 inet_protocols = ipv4
 
 # ─── Réseaux autorisés à relayer ───
