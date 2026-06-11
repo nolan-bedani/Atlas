@@ -19,8 +19,11 @@
     vmid: "{{ conteneur.vmid }}"
     hostname: "{{ conteneur.hostname }}"
     ostemplate: "local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst"
-    storage: "local"
-    disk: "{{ conteneur.disk }}"
+    # storage/disk sont mutuellement exclusifs depuis community.general 9 :
+    # disk_volume est la forme moderne (storage local imposé, jamais local-lvm)
+    disk_volume:
+      storage: "local"
+      size: "{{ conteneur.disk }}"
     cores: "{{ conteneur.cores }}"
     memory: "{{ conteneur.memory }}"
     netif: '{"net0":"name=eth0,bridge=vmbr0,ip={{ conteneur.ip }}/24,gw={{ conteneur.gw }},tag={{ conteneur.vlan }}"}'
