@@ -1,0 +1,45 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — installation des paquets et arborescence
+# ══════════════════════════════════════════════
+
+# ─── Paquets nécessaires aux scénarios d'incident ───
+
+- name: Installer nginx et stress-ng
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - stress-ng
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+# ─── Arborescence Atlas (scripts et journaux) ───
+
+- name: Créer les répertoires Atlas (scripts et journaux)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - /opt/atlas/scripts
+    - /var/log/atlas
+
+# ─── Service nginx (la « victime » des scénarios) ───
+
+- name: Activer et démarrer nginx
+  ansible.builtin.service:
+    name: nginx
+    enabled: true
+    state: started
+
+# ─── Pare-feu UFW : accès HTTP pour la supervision ───
+
+- name: Autoriser HTTP (80/tcp) depuis le réseau interne 10.0.0.0/8
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    from_ip: 10.0.0.0/8

@@ -1,0 +1,205 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — enregistrement des hôtes via l'API
+# ══════════════════════════════════════════════
+# L'API JSON-RPC est interrogée en local (le rôle s'exécute sur atlzbx01p).
+# Zabbix 7.0 : le jeton de session est transmis via l'en-tête
+# « Authorization: Bearer » (le champ « auth » dans le corps est déprécié).
+
+# ─── Ouverture de session ───
+
+- name: Ouvrir une session API Zabbix
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: user.login
+      params:
+        username: Admin
+        password: "{{ vault_zabbix_admin_password }}"
+      id: 1
+    status_code: 200
+  register: zabbix_api_login
+  failed_when: zabbix_api_login.json.result is not defined
+  changed_when: false
+  no_log: true
+
+# ─── Groupe d'hôtes Atlas ───
+
+- name: Rechercher le groupe d'hôtes Atlas
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: hostgroup.get
+      params:
+        filter:
+          name:
+            - "Atlas"
+      id: 2
+    status_code: 200
+  register: zabbix_api_hostgroup_get
+  failed_when: zabbix_api_hostgroup_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Créer le groupe d'hôtes Atlas
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: hostgroup.create
+      params:
+        name: "Atlas"
+      id: 3
+    status_code: 200
+  register: zabbix_api_hostgroup_create
+  failed_when: zabbix_api_hostgroup_create.json.result is not defined
+  changed_when: true
+  no_log: true
+  when: zabbix_api_hostgroup_get.json.result | length == 0
+
+# Identifiant du groupe : issu de la recherche, sinon de la création
+- name: Mémoriser l'identifiant du groupe d'hôtes Atlas
+  ansible.builtin.set_fact:
+    zabbix_atlas_groupid: >-
+      {{ zabbix_api_hostgroup_get.json.result[0].groupid
+         if zabbix_api_hostgroup_get.json.result | length > 0
+         else zabbix_api_hostgroup_create.json.result.groupids[0] }}
+
+# ─── Template de supervision Linux ───
+
+- name: Récupérer le template Linux
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: template.get
+      params:
+        filter:
+          host:
+            - "Linux by Zabbix agent"
+      id: 4
+    status_code: 200
+  register: zabbix_api_template_get
+  failed_when: zabbix_api_template_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Vérifier la présence du template « Linux by Zabbix agent »
+  ansible.builtin.assert:
+    that:
+      - zabbix_api_template_get.json.result | length > 0
+    fail_msg: >-
+      Le template « Linux by Zabbix agent » est introuvable dans Zabbix :
+      impossible d'enregistrer les hôtes Atlas.
+    quiet: true
+
+- name: Mémoriser l'identifiant du template Linux
+  ansible.builtin.set_fact:
+    zabbix_linux_templateid: "{{ zabbix_api_template_get.json.result[0].templateid }}"
+
+# ─── Enregistrement des hôtes (logique en deux passes) ───
+
+# Première passe : recenser les hôtes Atlas déjà déclarés dans Zabbix
+- name: Recenser les hôtes Atlas déjà présents dans Zabbix
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: host.get
+      params:
+        filter:
+          host: "{{ zabbix_monitored_hosts | map(attribute='name') | list }}"
+        output:
+          - host
+      id: 5
+    status_code: 200
+  register: zabbix_api_hosts_get
+  failed_when: zabbix_api_hosts_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Mémoriser la liste des hôtes déjà enregistrés
+  ansible.builtin.set_fact:
+    zabbix_existing_host_names: "{{ zabbix_api_hosts_get.json.result | map(attribute='host') | list }}"
+
+# Seconde passe : créer uniquement les hôtes absents (idempotence)
+- name: Enregistrer chaque hôte Atlas
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: host.create
+      params:
+        host: "{{ item.name }}"
+        interfaces:
+          - type: 1
+            main: 1
+            useip: 1
+            ip: "{{ item.ip }}"
+            dns: ""
+            port: "10050"
+        groups:
+          - groupid: "{{ zabbix_atlas_groupid }}"
+        templates:
+          - templateid: "{{ zabbix_linux_templateid }}"
+      id: 6
+    status_code: 200
+  register: zabbix_api_host_create
+  failed_when: zabbix_api_host_create.json.result is not defined
+  changed_when: true
+  no_log: true
+  loop: "{{ zabbix_monitored_hosts }}"
+  when: item.name not in zabbix_existing_host_names
+
+# ─── Fermeture de session ───
+
+- name: Fermer la session API Zabbix
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: user.logout
+      params: []
+      id: 7
+    status_code: 200
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# ─── Débogage ───
+
+- name: Afficher le résumé de l'enregistrement des hôtes
+  ansible.builtin.debug:
+    msg: >-
+      Groupe Atlas : {{ zabbix_atlas_groupid }} —
+      Template Linux : {{ zabbix_linux_templateid }} —
+      Hôtes déjà présents : {{ zabbix_existing_host_names | join(', ') }}
+  when: zabbix_debug

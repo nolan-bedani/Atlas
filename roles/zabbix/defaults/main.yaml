@@ -20,3 +20,19 @@ zabbix_frontend_port: 8080
 # ─── Débogage ───
 
 zabbix_debug: false
+
+# ─── Hôtes supervisés (enregistrés automatiquement via l'API) ───
+
+# Point d'entrée de l'API JSON-RPC (exécuté en local sur atlzbx01p)
+zabbix_api_url: "http://localhost:8080/api_jsonrpc.php"
+# Conteneurs Atlas à enregistrer dans Zabbix (agent2 sur le port 10050)
+zabbix_monitored_hosts:
+  - { name: atlbst01p, ip: 10.90.0.10 }
+  - { name: atlrp01p, ip: 10.20.0.10 }
+  - { name: atlapp01p, ip: 10.20.0.11 }
+  - { name: atldb01p, ip: 10.30.0.10 }
+  - { name: atlsmtp01p, ip: 10.30.0.11 }
+  - { name: atlzbx01p, ip: 10.30.0.12 }
+  - { name: atlbkp01p, ip: 10.30.0.13 }
+  - { name: atlgrf01p, ip: 10.30.0.14 }
+  - { name: atltst01p, ip: 10.20.0.20 }

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════
+# Atlas — chaos.sh : générateur d'incidents contrôlés
+# Déployé par Ansible (rôle testlab) — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════
+#
+# Usage :
+#   chaos.sh run                  → déclenche UN scénario aléatoire
+#   chaos.sh clean                → répare tout (état nominal)
+#   chaos.sh <cpu|disk|service>   → déclenche un scénario précis
+#
+# Tous les incidents sont RÉVERSIBLES et détectés par Zabbix.
+
+set -euo pipefail
+
+# ─── Constantes ───
+LOG_FILE="/var/log/atlas/chaos.log"
+DISK_FILE="/var/tmp/chaos_disk_fill"
+
+# ─── Journalisation horodatée (console + fichier) ───
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
+    # Piège set -u : on capture PIPESTATUS d'un bloc, sinon il est perdu
+    RC=("${PIPESTATUS[@]}")
+    if [[ "${RC[0]}" -ne 0 || "${RC[1]}" -ne 0 ]]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVERTISSEMENT : écriture du journal en échec (rc=${RC[*]})" >&2
+    fi
+}
+
+# ─── Scénario cpu : saturation CPU temporaire ───
+# Le timeout garantit l'arrêt automatique même sans réparation.
+incident_cpu() {
+    log "INCIDENT DÉCLENCHÉ : cpu ({{ testlab_cpu_workers }} workers stress-ng, durée {{ testlab_cpu_duration }})"
+    timeout {{ testlab_cpu_duration }} stress-ng --cpu {{ testlab_cpu_workers }} --quiet &
+    disown
+}
+
+# ─── Scénario disk : remplissage contrôlé du disque ───
+# Fichier unique : pas de doublon si l'incident est déjà actif.
+incident_disk() {
+    if [[ -f "${DISK_FILE}" ]]; then
+        log "INCIDENT disk déjà actif : ${DISK_FILE} présent, aucun doublon créé"
+    else
+        fallocate -l {{ testlab_disk_fill_mb }}M "${DISK_FILE}"
+        log "INCIDENT DÉCLENCHÉ : disk ({{ testlab_disk_fill_mb }} Mo alloués dans ${DISK_FILE})"
+    fi
+}
+
+# ─── Scénario service : arrêt du service nginx ───
+incident_service() {
+    systemctl stop nginx
+    log "INCIDENT DÉCLENCHÉ : service (nginx arrêté)"
+}
+
+# ─── Réparation : retour à l'état nominal ───
+reparer() {
+    rm -f "${DISK_FILE}"
+    systemctl start nginx
+    pkill -f stress-ng || true
+    log "RÉPARATION effectuée : fichier disque supprimé, nginx démarré, stress-ng arrêté"
+}
+
+# ─── Point d'entrée ───
+case "${1:-}" in
+    run)
+        # Choix aléatoire d'un scénario parmi les trois
+        SCENARIOS=(cpu disk service)
+        CHOIX=${SCENARIOS[$((RANDOM % 3))]}
+        log "Scénario aléatoire sélectionné : ${CHOIX}"
+        "incident_${CHOIX}"
+        ;;
+    cpu)
+        incident_cpu
+        ;;
+    disk)
+        incident_disk
+        ;;
+    service)
+        incident_service
+        ;;
+    clean)
+        reparer
+        ;;
+    *)
+        echo "Usage : $0 {run|clean|cpu|disk|service}" >&2
+        exit 1
+        ;;
+esac

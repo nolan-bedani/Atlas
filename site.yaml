@@ -92,3 +92,27 @@
   roles:
     - role: backup
       tags: [backup]
+
+# ─── Tableaux de bord Grafana (VLAN 30) ───
+- name: "Configuration de Grafana (visualisation Zabbix)"
+  hosts: atlgrf01p
+  gather_facts: true
+  roles:
+    - role: grafana
+      tags: [grafana]
+
+# ─── Machine de test : incidents contrôlés (VLAN 20) ───
+- name: "Configuration de la machine de test (incidents chaos)"
+  hosts: atltst01p
+  gather_facts: true
+  roles:
+    - role: testlab
+      tags: [testlab]
+
+# ─── Données de démonstration GLPI ───
+- name: "Remplissage de GLPI avec des données de démonstration"
+  hosts: atlapp01p
+  gather_facts: true
+  roles:
+    - role: glpi_seed
+      tags: [glpi_seed]

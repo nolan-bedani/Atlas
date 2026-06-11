@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : grafana — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Réseau ───
+
+# Port d'écoute HTTP de Grafana
+grafana_port: 3000
+# Adresse IP du serveur Zabbix (atlzbx01p)
+grafana_zabbix_host: "10.30.0.12"
+# Port du frontend web Zabbix (nginx)
+grafana_zabbix_port: 8080
+
+# ─── Débogage ───
+
+grafana_debug: false

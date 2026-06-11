@@ -1,0 +1,49 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi_seed — activation de l'API REST et jeton API
+# ══════════════════════════════════════════════
+
+# ─── Activation de l'API REST de GLPI (via MariaDB sur atldb01p) ───
+
+- name: Lire l'état actuel de l'API REST dans la configuration GLPI
+  ansible.builtin.command: >
+    mysql glpi_db -N -e
+    "SELECT value FROM glpi_configs WHERE context='core' AND name='use_rest_api';"
+  delegate_to: atldb01p
+  register: glpi_seed_api_state
+  changed_when: false
+
+- name: Activer l'API REST de GLPI
+  ansible.builtin.command: >
+    mysql glpi_db -N -e
+    "UPDATE glpi_configs SET value='1' WHERE context='core' AND name='use_rest_api';"
+  delegate_to: atldb01p
+  when: glpi_seed_api_state.stdout | trim != "1"
+
+# ─── Jeton API du compte glpi (secret — no_log) ───
+
+- name: Lire le jeton API actuel du compte glpi
+  ansible.builtin.command: >
+    mysql glpi_db -N -e
+    "SELECT api_token FROM glpi_users WHERE name='glpi';"
+  delegate_to: atldb01p
+  register: glpi_seed_token_state
+  changed_when: false
+  no_log: true
+
+- name: Poser le jeton API du compte glpi
+  ansible.builtin.command: >
+    mysql glpi_db -N -e
+    "UPDATE glpi_users SET api_token='{{ vault_glpi_api_token }}' WHERE name='glpi';"
+  delegate_to: atldb01p
+  when: glpi_seed_token_state.stdout | trim != vault_glpi_api_token
+  no_log: true
+
+# ─── Dépendance Python du script de remplissage ───
+
+- name: Installer python3-requests
+  ansible.builtin.apt:
+    name: python3-requests
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

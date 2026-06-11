@@ -15,6 +15,8 @@ proxmox_containers:
   - { vmid: 204, hostname: atlsmtp01p, ip: 10.30.0.11, gw: 10.30.0.1, vlan: 30, role: "SMTP Relay Postfix",  cores: 1, memory: 512,  disk: 4  }
   - { vmid: 205, hostname: atlzbx01p,  ip: 10.30.0.12, gw: 10.30.0.1, vlan: 30, role: "Zabbix Server",       cores: 2, memory: 1024, disk: 8  }
   - { vmid: 206, hostname: atlbkp01p,  ip: 10.30.0.13, gw: 10.30.0.1, vlan: 30, role: "Backup",              cores: 1, memory: 512,  disk: 8  }
+  - { vmid: 207, hostname: atlgrf01p,  ip: 10.30.0.14, gw: 10.30.0.1, vlan: 30, role: "Grafana",             cores: 1, memory: 512,  disk: 6  }
+  - { vmid: 208, hostname: atltst01p,  ip: 10.20.0.20, gw: 10.20.0.1, vlan: 20, role: "Machine de test",     cores: 1, memory: 512,  disk: 4  }
 
 # ─── Mode debug du rôle ───
 proxmox_provision_debug: false

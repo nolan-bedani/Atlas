@@ -1,0 +1,42 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — planification des incidents et réparations
+# ══════════════════════════════════════════════
+
+# ─── Crons actifs : cycle incident / réparation ───
+
+- name: Planifier l'incident chaos toutes les 2 heures
+  ansible.builtin.cron:
+    name: "Incident chaos toutes les 2 heures"
+    minute: "0"
+    hour: "*/2"
+    job: /opt/atlas/scripts/chaos.sh run
+    user: root
+    state: present
+  when: testlab_cron_enabled
+
+- name: Planifier la réparation chaos (45 min après l'incident)
+  ansible.builtin.cron:
+    name: "Réparation chaos"
+    minute: "45"
+    hour: "*/2"
+    job: /opt/atlas/scripts/chaos.sh clean
+    user: root
+    state: present
+  when: testlab_cron_enabled
+
+# ─── Crons retirés si la planification est désactivée ───
+
+- name: Retirer le cron d'incident chaos (planification désactivée)
+  ansible.builtin.cron:
+    name: "Incident chaos toutes les 2 heures"
+    user: root
+    state: absent
+  when: not testlab_cron_enabled
+
+- name: Retirer le cron de réparation chaos (planification désactivée)
+  ansible.builtin.cron:
+    name: "Réparation chaos"
+    user: root
+    state: absent
+  when: not testlab_cron_enabled

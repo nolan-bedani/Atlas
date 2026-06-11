@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : grafana — installation des paquets
+# ══════════════════════════════════════════════
+
+# ─── Installation de Grafana ───
+
+- name: Installer le paquet grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+
+# ─── Plugin Zabbix pour Grafana ───
+
+# La directive creates garantit l'idempotence de l'installation du plugin
+- name: Installer le plugin Zabbix (alexanderzobnin-zabbix-app)
+  ansible.builtin.command: grafana-cli plugins install alexanderzobnin-zabbix-app
+  args:
+    creates: /var/lib/grafana/plugins/alexanderzobnin-zabbix-app
+  notify: Redémarrer grafana

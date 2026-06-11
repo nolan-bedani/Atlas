@@ -1,0 +1,8 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: scripts.yaml
+- ansible.builtin.import_tasks: cron.yaml

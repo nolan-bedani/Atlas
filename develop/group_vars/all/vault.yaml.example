@@ -28,3 +28,12 @@ vault_glpi_db_password: "CHANGE_ME"
 
 # ─── Zabbix (connexion base de données) ───
 vault_zabbix_db_password: "CHANGE_ME"
+
+# ─── Zabbix (compte Admin du frontend — utilisé par Grafana et l'API) ───
+vault_zabbix_admin_password: "CHANGE_ME"
+
+# ─── Grafana (compte admin) ───
+vault_grafana_admin_password: "CHANGE_ME"
+
+# ─── GLPI (jeton API du compte glpi — données de démonstration) ───
+vault_glpi_api_token: "CHANGE_ME"

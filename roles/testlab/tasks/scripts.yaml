@@ -1,0 +1,24 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — déploiement du script de chaos contrôlé
+# ══════════════════════════════════════════════
+
+# ─── Script chaos.sh : incidents contrôlés et réversibles ───
+
+- name: Déployer le script chaos.sh (incidents contrôlés)
+  ansible.builtin.template:
+    src: chaos.sh.j2
+    dest: /opt/atlas/scripts/chaos.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+# ─── Mode debug ───
+
+- name: Afficher les paramètres du script chaos (debug)
+  ansible.builtin.debug:
+    msg: >-
+      chaos.sh déployé — durée CPU : {{ testlab_cpu_duration }},
+      workers CPU : {{ testlab_cpu_workers }},
+      remplissage disque : {{ testlab_disk_fill_mb }} Mo
+  when: testlab_debug

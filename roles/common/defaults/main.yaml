@@ -18,6 +18,8 @@ common_atlas_hosts:
   - { name: atlsmtp01p, ip: 10.30.0.11 }
   - { name: atlzbx01p,  ip: 10.30.0.12 }
   - { name: atlbkp01p,  ip: 10.30.0.13 }
+  - { name: atlgrf01p,  ip: 10.30.0.14 }
+  - { name: atltst01p,  ip: 10.20.0.20 }
 
 # ─── Mode debug ───
 common_debug: false

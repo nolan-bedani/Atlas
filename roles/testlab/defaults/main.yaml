@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Planification des incidents (crons) ───
+testlab_cron_enabled: true
+
+# ─── Scénario CPU : durée et nombre de workers stress-ng ───
+testlab_cpu_duration: "600s"
+testlab_cpu_workers: 2
+
+# ─── Scénario disque : taille du fichier de remplissage (Mo) ───
+testlab_disk_fill_mb: 2500
+
+# ─── Mode debug ───
+testlab_debug: false

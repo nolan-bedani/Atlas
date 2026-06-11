@@ -1,0 +1,13 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi_seed — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── URL de l'API REST de GLPI (exécution locale sur atlapp01p) ───
+glpi_seed_api_url: "http://127.0.0.1/apirest.php"
+
+# ─── Nombre de tickets de démonstration à créer ───
+glpi_seed_ticket_count: 25
+
+# ─── Mode debug ───
+glpi_seed_debug: false

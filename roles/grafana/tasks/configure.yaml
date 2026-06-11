@@ -1,0 +1,64 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : grafana — configuration et provisioning
+# ══════════════════════════════════════════════
+
+# ─── Configuration principale de Grafana ───
+
+- name: Déployer la configuration principale de Grafana
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: root
+    group: grafana
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer grafana
+
+# ─── Répertoires de provisioning ───
+
+- name: Garantir la présence des répertoires de provisioning
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: grafana
+    mode: "0750"
+  loop:
+    - /etc/grafana/provisioning/plugins
+    - /etc/grafana/provisioning/datasources
+
+# ─── Provisioning du plugin Zabbix ───
+
+- name: Déployer le provisioning du plugin Zabbix
+  ansible.builtin.template:
+    src: provisioning_plugins.yaml.j2
+    dest: /etc/grafana/provisioning/plugins/zabbix.yaml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Redémarrer grafana
+
+# ─── Provisioning de la source de données Zabbix ───
+
+- name: Déployer le provisioning de la source de données Zabbix
+  ansible.builtin.template:
+    src: provisioning_datasource.yaml.j2
+    dest: /etc/grafana/provisioning/datasources/zabbix.yaml
+    owner: root
+    group: grafana
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer grafana
+
+# ─── Pare-feu UFW ───
+
+- name: Autoriser l'accès à Grafana depuis les réseaux Atlas
+  community.general.ufw:
+    rule: allow
+    port: "{{ grafana_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - "10.30.0.0/24"
+    - "10.90.0.0/24"
