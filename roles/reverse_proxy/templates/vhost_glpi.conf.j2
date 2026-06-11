@@ -12,8 +12,9 @@ server {
 
 # ─── Proxy HTTPS vers le backend GLPI ───
 server {
-    listen 443 ssl;
-    http2 on;
+    # « http2 » en suffixe de listen : la directive autonome « http2 on; »
+    # n'existe qu'à partir de nginx 1.25 (Debian 12 fournit 1.22).
+    listen 443 ssl http2;
     server_name {{ reverse_proxy_server_name }};
 
     # ─── TLS ───
