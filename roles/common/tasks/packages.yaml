@@ -23,6 +23,7 @@
       - gnupg
       - python3-apt
       - ufw
+      - sudo            # absent du template LXC debian-12-standard
     state: present
 
 # ─── Suppression des paquets non sécurisés ───

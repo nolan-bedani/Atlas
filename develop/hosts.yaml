@@ -21,9 +21,13 @@ all:
           ansible_host: 10.90.0.10
 
     # ─── VLAN 20 — DMZ (reverse proxy + GLPI) ───
+    # NB : ProxyCommand (et non ProxyJump) pour imposer la clé atlas_ed25519
+    # sur le saut via le bastion — ProxyJump n'hérite pas de private_key_file.
     dmz:
       vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@10.90.0.10'
+        ansible_ssh_common_args: >-
+          -o StrictHostKeyChecking=no
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=no -W %h:%p root@10.90.0.10"
       hosts:
         atlrp01p:
           ansible_host: 10.20.0.10
@@ -33,7 +37,9 @@ all:
     # ─── VLAN 30 — LAN ADMIN (BDD, SMTP, supervision, backup) ───
     lan_admin:
       vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o ProxyJump=root@10.90.0.10'
+        ansible_ssh_common_args: >-
+          -o StrictHostKeyChecking=no
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=no -W %h:%p root@10.90.0.10"
       hosts:
         atldb01p:
           ansible_host: 10.30.0.10
