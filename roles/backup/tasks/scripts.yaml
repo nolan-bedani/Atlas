@@ -5,13 +5,15 @@
 
 # ─── Droits de lecture des dumps pour atlsvc sur atldb01p ───
 # atlsvc doit pouvoir lire les dumps afin que la collecte par rsync fonctionne.
+# Mode fixe avec setgid (2750) plutôt qu'un g+rx récursif ponctuel : la tâche
+# reste idempotente et les dumps créés ensuite par cron héritent du groupe atlsvc
+# (sans bit d'exécution inutile sur les fichiers .sql.gz).
 - name: "Donner au groupe atlsvc l'accès en lecture aux dumps sur atldb01p"
   ansible.builtin.file:
     path: "{{ backup_db_dumps_dir }}"
     state: directory
     group: "{{ backup_remote_user }}"
-    mode: "g+rx"
-    recurse: true
+    mode: "2750"
   delegate_to: atldb01p
 
 # ─── Déploiement des scripts ───

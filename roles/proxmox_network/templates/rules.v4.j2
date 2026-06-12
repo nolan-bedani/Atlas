@@ -4,21 +4,31 @@
 # Ne pas modifier manuellement (écrasé à chaque exécution du rôle).
 # ══════════════════════════════════════════════
 *filter
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
+:INPUT {{ 'DROP' if proxmox_network_harden_input else 'ACCEPT' }} [0:0]
+:FORWARD {{ proxmox_network_forward_policy }} [0:0]
 :OUTPUT ACCEPT [0:0]
+# ─── État & loopback (toujours autorisés) ───
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+{% if proxmox_network_harden_input %}
+# ─── INPUT hyperviseur (durcissement opt-in — vérifier l'accès SSH AVANT d'activer) ───
+-A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+{% for src in proxmox_network_admin_ssh_sources %}
+{% for p in proxmox_network_host_input_ports %}
+-A INPUT -i {{ proxmox_network_physical_iface }} -s {{ src }} -p {{ p.proto }} --dport {{ p.port }} -j ACCEPT
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% for vlan in proxmox_network_vlans %}
 # ─── VLAN {{ vlan.id }} ({{ vlan.subnet }}) → Internet ───
 -A FORWARD -s {{ vlan.subnet }} -o {{ proxmox_network_physical_iface }} -j ACCEPT
 -A FORWARD -d {{ vlan.subnet }} -i {{ proxmox_network_physical_iface }} -m state --state RELATED,ESTABLISHED -j ACCEPT
 {% endfor %}
-# ─── Routage inter-VLAN (DMZ ↔ LAN ADMIN ↔ MGMT) ───
-{% for src in proxmox_network_vlans %}
-{% for dst in proxmox_network_vlans %}
-{% if src.id != dst.id %}
--A FORWARD -s {{ src.subnet }} -d {{ dst.subnet }} -j ACCEPT
-{% endif %}
-{% endfor %}
+# ─── Matrice de flux inter-VLAN (moindre privilège — tout le reste tombe en FORWARD {{ proxmox_network_forward_policy }}) ───
+{% for rule in proxmox_network_interzone_rules %}
+# {{ rule.comment }}
+-A FORWARD -s {{ rule.src }} -d {{ rule.dst }} -p {{ rule.proto | default('tcp') }} -m multiport --dports {{ rule.ports | join(',') }} -j ACCEPT
 {% endfor %}
 {% for subnet in proxmox_network_extra_nat_subnets %}
 # ─── Sous-réseau hérité {{ subnet }} (préservé) ───

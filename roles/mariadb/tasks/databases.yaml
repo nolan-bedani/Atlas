@@ -36,9 +36,14 @@
   changed_when: false
   no_log: true
 
-- name: Accorder tous les privilèges sur glpi_db à glpi_user@10.20.0.11
-  ansible.builtin.command: mysql -e "GRANT ALL PRIVILEGES ON glpi_db.* TO 'glpi_user'@'10.20.0.11';"
-  when: "'ALL PRIVILEGES ON `glpi_db`' not in mariadb_grants_app.stdout"
+# Moindre privilège : on n'accorde que les droits requis par GLPI en exploitation
+# (DDL CREATE/ALTER/INDEX/REFERENCES inclus pour les migrations applicatives),
+# sans DROP ni GRANT OPTION. Une compromission de l'app ne peut plus détruire la base.
+- name: Accorder les privilèges applicatifs sur glpi_db à glpi_user@10.20.0.11
+  ansible.builtin.command: >
+    mysql -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX,
+    LOCK TABLES, REFERENCES ON glpi_db.* TO 'glpi_user'@'10.20.0.11';"
+  when: "'INSERT' not in mariadb_grants_app.stdout"
   changed_when: true
   no_log: true
 

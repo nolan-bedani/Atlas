@@ -5,11 +5,15 @@
 
 # ─── Connexion à la base de données (secrets via Vault) ───
 
+# config_db.php contient le mot de passe de la base : il appartient à root et
+# n'est accessible qu'en lecture au groupe www-data (le serveur web ne doit pas
+# pouvoir réécrire ce fichier). Déployé APRÈS le chown récursif de download.yaml
+# pour ne pas être ré-écrasé en www-data.
 - name: Déployer la configuration de connexion à la base de données
   ansible.builtin.template:
     src: config_db.php.j2
     dest: "{{ glpi_data_dir }}/config/config_db.php"
-    owner: www-data
+    owner: root
     group: www-data
     mode: "0640"
 
@@ -39,8 +43,14 @@
 
 # ─── Ouverture du pare-feu UFW ───
 
-- name: Autoriser le flux HTTP entrant (depuis le reverse proxy)
+# Le backend GLPI ne doit recevoir du HTTP clair que du reverse proxy (TLS amont)
+# et de la supervision. Toute autre source est bloquée (politique deny par défaut
+# du rôle common) pour ne pas contourner le TLS et le rate-limiting du proxy.
+- name: Autoriser le flux HTTP entrant depuis les sources légitimes uniquement
   community.general.ufw:
     rule: allow
     port: "80"
     proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Atlas - acces HTTP GLPI"
+  loop: "{{ glpi_http_allowed_sources }}"

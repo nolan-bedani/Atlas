@@ -19,5 +19,28 @@ proxmox_network_vlans:
 proxmox_network_extra_nat_subnets:
   - "10.10.10.0/24"
 
+# ─── Politique de filtrage (sécurité : transit inter-VLAN refusé par défaut) ───
+# FORWARD DROP segmente réellement les VLAN. La politique INPUT reste ACCEPT
+# par défaut pour NE PAS verrouiller l'accès SSH à l'hyperviseur distant ;
+# n'activer proxmox_network_harden_input qu'APRÈS avoir validé les règles INPUT
+# ci-dessous (risque de lockout — serveur Hetzner sans accès physique direct).
+proxmox_network_forward_policy: "DROP"
+proxmox_network_harden_input: false
+proxmox_network_admin_ssh_sources:
+  - "0.0.0.0/0"            # ⚠️  À RESTREINDRE aux IP d'administration en production
+proxmox_network_host_input_ports:
+  - { port: 22, proto: tcp }     # SSH hyperviseur
+  - { port: 8006, proto: tcp }   # Interface web / API Proxmox
+
+# ─── Matrice de flux inter-VLAN autorisés (moindre privilège) ───
+# Tout couple non listé est refusé par la politique FORWARD DROP.
+proxmox_network_interzone_rules:
+  - { src: "10.20.0.0/24", dst: "10.30.0.10/32", proto: tcp, ports: [3306],  comment: "DMZ → MariaDB (GLPI)" }
+  - { src: "10.20.0.0/24", dst: "10.30.0.11/32", proto: tcp, ports: [25],    comment: "DMZ → relais SMTP" }
+  - { src: "10.20.0.0/24", dst: "10.30.0.12/32", proto: tcp, ports: [10051], comment: "Agents DMZ → Zabbix (checks actifs)" }
+  - { src: "10.30.0.12/32", dst: "10.20.0.0/24", proto: tcp, ports: [10050], comment: "Zabbix → agents DMZ (checks passifs)" }
+  - { src: "10.90.0.0/24", dst: "10.20.0.0/24", proto: tcp, ports: [22],     comment: "MGMT (bastion) → DMZ SSH" }
+  - { src: "10.90.0.0/24", dst: "10.30.0.0/24", proto: tcp, ports: [22],     comment: "MGMT (bastion) → LAN ADMIN SSH" }
+
 # ─── Debug ───
 proxmox_network_debug: false

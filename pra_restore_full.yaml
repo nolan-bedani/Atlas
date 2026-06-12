@@ -32,6 +32,7 @@
 - name: "PRA — Reprovisioning des LXC"
   hosts: proxmox_node
   gather_facts: true
+  any_errors_fatal: true
   roles:
     - proxmox_provision
 
@@ -39,6 +40,7 @@
 - name: "PRA — Configuration de base (common)"
   hosts: mgmt:dmz:lan_admin
   gather_facts: true
+  any_errors_fatal: true
   roles:
     - common
 
@@ -52,6 +54,7 @@
 - name: "PRA — Service base de données MariaDB"
   hosts: atldb01p
   gather_facts: true
+  any_errors_fatal: true
   roles:
     - mariadb
 
@@ -64,12 +67,14 @@
 - name: "PRA — Service applicatif GLPI"
   hosts: atlapp01p
   gather_facts: true
+  any_errors_fatal: true
   roles:
     - glpi
 
 - name: "PRA — Service reverse proxy"
   hosts: atlrp01p
   gather_facts: true
+  any_errors_fatal: true
   roles:
     - reverse_proxy
 
@@ -92,85 +97,107 @@
     - backup
 
 # ─── Restauration des données (base + filestore) ───
+# any_errors_fatal + block/rescue/always : un échec pendant la restauration
+# des données doit interrompre le PRA, journaliser l'ÉCHEC et nettoyer le
+# dump temporaire (jamais laisser /tmp/restore.sql.gz en clair sur l'hôte).
 - name: "PRA — Restauration des données"
   hosts: atldb01p
   gather_facts: false
+  any_errors_fatal: true
   vars:
     # Dump à restaurer ; si vide, le dernier dump collecté sur atlbkp01p est utilisé
     pra_restore_dump: ""
   tasks:
-    # ─── Sélection du dump à restaurer ───
-    - name: "Déterminer le dernier dump disponible sur atlbkp01p"
-      ansible.builtin.shell: >
-        set -o pipefail;
-        ls -t /var/backups/atlas/db-remote/*.sql.gz | head -1
-      args:
-        executable: /bin/bash
-      delegate_to: atlbkp01p
-      register: pra_last_dump
-      changed_when: false
-      when: pra_restore_dump | length == 0
+    - name: "Bloc de restauration des données (base + filestore)"
+      block:
+        # ─── Sélection du dump à restaurer ───
+        - name: "Déterminer le dernier dump disponible sur atlbkp01p"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            ls -t /var/backups/atlas/db-remote/*.sql.gz | head -1
+          args:
+            executable: /bin/bash
+          delegate_to: atlbkp01p
+          register: pra_last_dump
+          changed_when: false
+          when: pra_restore_dump | length == 0
 
-    - name: "Fixer le chemin du dump retenu"
-      ansible.builtin.set_fact:
-        pra_dump_path: >-
-          {{ pra_restore_dump if pra_restore_dump | length > 0
-             else pra_last_dump.stdout | trim }}
+        - name: "Fixer le chemin du dump retenu"
+          ansible.builtin.set_fact:
+            pra_dump_path: >-
+              {{ pra_restore_dump if pra_restore_dump | length > 0
+                 else pra_last_dump.stdout | trim }}
 
-    - name: "Afficher le dump retenu pour la restauration"
-      ansible.builtin.debug:
-        msg: "Dump retenu : {{ pra_dump_path }}"
+        - name: "Afficher le dump retenu pour la restauration"
+          ansible.builtin.debug:
+            msg: "Dump retenu : {{ pra_dump_path }}"
 
-    # ─── Transfert du dump : atlbkp01p -> atldb01p ───
-    # La clé de sauvegarde n'autorise que atlsvc : on pousse donc le dump
-    # depuis atlbkp01p vers atlsvc@atldb01p, dans /tmp.
-    - name: "Transférer le dump depuis atlbkp01p vers atldb01p"
-      ansible.builtin.shell: >
-        rsync -avz
-        -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=no"
-        "{{ pra_dump_path }}" atlsvc@10.30.0.10:/tmp/restore.sql.gz
-      delegate_to: atlbkp01p
-      changed_when: true
+        # ─── Transfert du dump : atlbkp01p -> atldb01p ───
+        # La clé de sauvegarde n'autorise que atlsvc : on pousse donc le dump
+        # depuis atlbkp01p vers atlsvc@atldb01p, dans /tmp.
+        - name: "Transférer le dump depuis atlbkp01p vers atldb01p"
+          ansible.builtin.shell: >
+            rsync -avz
+            -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=accept-new"
+            "{{ pra_dump_path }}" atlsvc@10.30.0.10:/tmp/restore.sql.gz
+          delegate_to: atlbkp01p
+          changed_when: true
 
-    # ─── Restauration de la base GLPI (accès root via /root/.my.cnf) ───
-    - name: "Restaurer la base glpi_db depuis le dump"
-      ansible.builtin.shell: >
-        set -o pipefail;
-        zcat /tmp/restore.sql.gz | mysql glpi_db
-      args:
-        executable: /bin/bash
-      changed_when: true
-      no_log: true
+        # ─── Restauration de la base GLPI (accès root via /root/.my.cnf) ───
+        - name: "Restaurer la base glpi_db depuis le dump"
+          ansible.builtin.shell: >
+            set -o pipefail;
+            zcat /tmp/restore.sql.gz | mysql glpi_db
+          args:
+            executable: /bin/bash
+          changed_when: true
+          no_log: true
 
-    - name: "Supprimer le dump temporaire"
-      ansible.builtin.file:
-        path: /tmp/restore.sql.gz
-        state: absent
+        # ─── Restauration du filestore GLPI : atlbkp01p -> atlapp01p ───
+        - name: "Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p"
+          ansible.builtin.shell: >
+            rsync -avz
+            -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=accept-new"
+            /var/backups/atlas/filestore/ atlsvc@10.20.0.11:/var/lib/glpi/files/
+          delegate_to: atlbkp01p
+          changed_when: true
 
-    # ─── Restauration du filestore GLPI : atlbkp01p -> atlapp01p ───
-    - name: "Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p"
-      ansible.builtin.shell: >
-        rsync -avz
-        -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=no"
-        /var/backups/atlas/filestore/ atlsvc@10.20.0.11:/var/lib/glpi/files/
-      delegate_to: atlbkp01p
-      changed_when: true
+        - name: "Remettre les permissions www-data sur le filestore GLPI"
+          ansible.builtin.file:
+            path: /var/lib/glpi/files
+            state: directory
+            owner: www-data
+            group: www-data
+            recurse: true
+          delegate_to: atlapp01p
 
-    - name: "Remettre les permissions www-data sur le filestore GLPI"
-      ansible.builtin.file:
-        path: /var/lib/glpi/files
-        state: directory
-        owner: www-data
-        group: www-data
-        recurse: true
-      delegate_to: atlapp01p
+      rescue:
+        - name: "Journaliser l'ÉCHEC de la restauration des données"
+          ansible.builtin.shell: >
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] ÉCHEC restauration des données"
+            >> /var/log/atlas/pra_restore_full.log
+          changed_when: true
+
+        - name: "Interrompre le PRA après l'échec de la restauration des données"
+          ansible.builtin.fail:
+            msg: >-
+              La restauration des données a échoué. Consultez
+              /var/log/atlas/pra_restore_full.log et l'erreur ci-dessus.
+
+      always:
+        # Nettoyage du dump temporaire en clair, que la restauration ait
+        # réussi ou échoué (le dump contient toute la base GLPI).
+        - name: "Supprimer le dump temporaire"
+          ansible.builtin.file:
+            path: /tmp/restore.sql.gz
+            state: absent
 
 # ─── Vérifications post-restauration ───
 - name: "PRA — Vérification de l'application GLPI"
   hosts: atlapp01p
   gather_facts: false
   tasks:
-    - name: "Vérifier que GLPI répond en HTTP"
+    - name: "Vérifier que GLPI répond en HTTP (backend direct)"
       ansible.builtin.uri:
         url: "http://10.20.0.11/"
         status_code: [200, 302]
@@ -178,6 +205,22 @@
       retries: 5
       delay: 10
       until: pra_check_glpi.status in [200, 302]
+
+    # Vérification de la chaîne complète via le reverse proxy TLS (atlrp01p).
+    # CLAUDE.md impose TLS sur le reverse proxy : on valide que le point
+    # d'entrée réel des utilisateurs répond bien en HTTPS (cert + vhost nginx).
+    # validate_certs: false car le certificat est interne (hors VCS).
+    - name: "Vérifier que GLPI répond via le reverse proxy HTTPS"
+      ansible.builtin.uri:
+        url: "https://10.20.0.10/"
+        headers:
+          Host: "atlas.internal"
+        validate_certs: false
+        status_code: [200, 302]
+      register: pra_check_glpi_https
+      retries: 5
+      delay: 10
+      until: pra_check_glpi_https.status in [200, 302]
 
 - name: "PRA — Vérification de la base de données"
   hosts: atldb01p

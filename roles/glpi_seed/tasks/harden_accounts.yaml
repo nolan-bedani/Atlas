@@ -1,0 +1,50 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi_seed — durcissement des comptes par défaut
+# CLAUDE.md : « Aucun compte administrateur par défaut ne doit être conservé. »
+# ══════════════════════════════════════════════
+# Objectif : supprimer le couple par défaut connu glpi/glpi (super-admin exposé
+# via le reverse proxy) en renommant le compte et en posant un mot de passe fort,
+# puis désactiver les comptes de démonstration (tech/normal/post-only).
+#
+# Note : GLPI stocke les mots de passe via password_hash() PHP (bcrypt $2y$).
+# Le filtre Ansible password_hash('bcrypt') produit un hash $2b$ accepté par PHP.
+# Il requiert passlib sur le nœud de contrôle.
+
+- name: Vérifier que le mot de passe admin GLPI du vault est défini
+  ansible.builtin.assert:
+    that:
+      - vault_glpi_admin_password is defined
+      - vault_glpi_admin_password | length >= 12
+      - vault_glpi_admin_password != 'CHANGE_ME'
+    fail_msg: >-
+      vault_glpi_admin_password doit être défini (>= 12 caractères) dans le vault
+      avant de sécuriser le super-administrateur GLPI.
+
+- name: Vérifier si le compte super-admin par défaut « glpi » existe encore
+  ansible.builtin.command: >
+    mysql {{ vault_glpi_db_name }} -N -e
+    "SELECT name FROM glpi_users WHERE name='glpi';"
+  delegate_to: atldb01p
+  register: glpi_default_admin
+  changed_when: false
+
+- name: Renommer et sécuriser le super-administrateur GLPI par défaut
+  ansible.builtin.command: >
+    mysql {{ vault_glpi_db_name }} -e
+    "UPDATE glpi_users
+        SET name='{{ glpi_admin_username }}',
+            password='{{ vault_glpi_admin_password | password_hash('bcrypt') }}'
+      WHERE name='glpi';"
+  delegate_to: atldb01p
+  when: glpi_default_admin.stdout | trim == 'glpi'
+  no_log: true
+  changed_when: true
+
+- name: Désactiver les comptes GLPI par défaut superflus
+  ansible.builtin.command: >
+    mysql {{ vault_glpi_db_name }} -e
+    "UPDATE glpi_users SET is_active=0 WHERE name='{{ item }}';"
+  delegate_to: atldb01p
+  loop: "{{ glpi_default_disabled_accounts }}"
+  changed_when: true

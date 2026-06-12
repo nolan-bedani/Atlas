@@ -68,7 +68,22 @@ ni les backups.
   `debian-12-standard_12.12-1_amd64.tar.zst` téléchargé (`pveam download local ...`)
 - Ansible ≥ 2.14, `python3-proxmoxer`, `python3-requests`, `jq`
 - Clé SSH `/root/.ssh/atlas_ed25519` (la clé publique est injectée dans les LXC)
-- Un jeton API Proxmox : `pveum user token add root@pam ansible --privsep 0`
+- Un jeton API Proxmox **à moindre privilège** (PRA = ne pas dépendre de root@pam) :
+  créer un rôle restreint aux opérations LXC + un utilisateur dédié + un jeton
+  **avec** séparation de privilèges (`--privsep 1`) :
+  ```bash
+  pveum role add AtlasProvision -privs \
+    "VM.Allocate VM.Config.Disk VM.Config.CPU VM.Config.Memory \
+     VM.Config.Network VM.Config.Options VM.PowerMgmt \
+     Datastore.AllocateSpace Datastore.Audit"
+  pveum user add ansible@pve
+  pveum acl modify / -user ansible@pve -role AtlasProvision
+  pveum user token add ansible@pve atlas --privsep 1   # NOTER le secret affiché
+  pveum acl modify / -user 'ansible@pve!atlas' -role AtlasProvision
+  ```
+  > ⚠️ Ne pas utiliser `pveum user token add root@pam ansible --privsep 0` :
+  > le jeton hériterait de **tous** les pouvoirs root sur l'hyperviseur. Reporter
+  > l'utilisateur, l'id de jeton et le secret dans le vault (`vault_proxmox_*`).
 
 ### Les 5 commandes
 
@@ -110,13 +125,22 @@ Ouvrez un terminal par tunnel et **laissez-le ouvert** :
 
 | Service | Tunnel | URL navigateur | Compte initial |
 |---|---|---|---|
-| GLPI | `ssh -L 8443:10.20.0.10:443 root@138.201.135.108` | `https://localhost:8443` ⚠️ certificat auto-signé : « Avancé → Continuer » | `glpi` / `glpi` |
+| GLPI | `ssh -L 8443:10.20.0.10:443 root@138.201.135.108` | `https://localhost:8443` ⚠️ certificat auto-signé : « Avancé → Continuer » | `atlasadmin` / *(vault `vault_glpi_admin_password`)* |
 | Zabbix | `ssh -L 8080:10.30.0.12:8080 root@138.201.135.108` | `http://localhost:8080` | `Admin` / `zabbix` |
 | Grafana | `ssh -L 3000:10.30.0.14:3000 root@138.201.135.108` | `http://localhost:3000` | `admin` / *(vault)* |
 
-> 🔐 **Changez les mots de passe par défaut dès la première connexion** (GLPI et
-> Zabbix). Si vous changez celui de Zabbix, mettez à jour `vault_zabbix_admin_password`
-> (`ansible-vault edit develop/group_vars/all/vault.yaml`) puis rejouez `--tags grafana,zabbix`.
+> 🔐 **Comptes GLPI par défaut — supprimés automatiquement.** Le rôle `glpi_seed`
+> (tâche `harden_accounts`, jouée par `--tags glpi_seed`) applique la règle CLAUDE.md
+> « aucun compte admin par défaut conservé » : le super-admin `glpi`/`glpi` est
+> **renommé** en `atlasadmin` (variable `glpi_admin_username`) avec le mot de passe
+> fort `vault_glpi_admin_password`, et les comptes de démo `tech`, `normal`,
+> `post-only` sont **désactivés**. Renseignez donc `vault_glpi_admin_password`
+> (>= 12 caractères, ≠ `CHANGE_ME`) **avant** de jouer `glpi_seed`.
+>
+> 🔐 **Zabbix** : le compte `Admin`/`zabbix` par défaut n'est pas encore durci par
+> le code — **changez son mot de passe dès la première connexion**, mettez à jour
+> `vault_zabbix_admin_password` (`ansible-vault edit develop/group_vars/all/vault.yaml`)
+> puis rejouez `--tags grafana,zabbix`.
 
 ---
 
@@ -183,25 +207,40 @@ désactivable avec `testlab_cron_enabled: false`. Journal : `/var/log/atlas/chao
 │       ├── all/vars.yaml      # Variables globales (non secrètes)
 │       ├── all/vault.yaml     # SECRETS chiffrés AES-256 (gitignored !)
 │       └── all/vault.yaml.example  # Modèle à copier
-└── roles/                     # 1 rôle = 1 brique, toujours la même structure :
-    │                          #   tasks/main.yaml = sommaire (imports only)
-    │                          #   tasks/*.yaml    = la logique, par étape
-    │                          #   templates/*.j2  = fichiers de conf générés
-    │                          #   defaults/       = variables modifiables
-    ├── proxmox_network/       # VLANs + NAT sur pve01
-    ├── proxmox_provision/     # Création des 9 LXC via l'API Proxmox
-    ├── common/                # Socle : hardening SSH, UFW, atlsvc, NTP
-    ├── bastion/               # Le sas SSH
-    ├── reverse_proxy/         # Nginx TLS
-    ├── glpi/                  # L'application helpdesk
-    ├── glpi_seed/             # Données de démo (25 tickets, users, parc)
-    ├── mariadb/               # BDD + dumps automatiques
-    ├── smtp/                  # Postfix
-    ├── zabbix/                # Serveur + frontend + enregistrement des hôtes
-    ├── zabbix_agent/          # Agent sur les 9 LXC
-    ├── grafana/               # Dashboards (datasource Zabbix provisionnée)
-    ├── backup/                # Collecte des sauvegardes
-    └── testlab/               # Générateur d'incidents
+├── roles/                     # 1 rôle = 1 brique, toujours la même structure :
+│   │                          #   tasks/main.yaml = sommaire (imports only)
+│   │                          #   tasks/*.yaml    = la logique, par étape
+│   │                          #   templates/*.j2  = fichiers de conf générés
+│   │                          #   defaults/       = variables modifiables
+│   ├── proxmox_network/       # VLANs + NAT sur pve01
+│   ├── proxmox_provision/     # Création des 9 LXC via l'API Proxmox
+│   ├── common/                # Socle : hardening SSH, UFW, atlsvc, NTP
+│   ├── bastion/               # Le sas SSH
+│   ├── reverse_proxy/         # Nginx TLS
+│   ├── glpi/                  # L'application helpdesk
+│   ├── glpi_seed/             # Données de démo + durcissement comptes par défaut
+│   ├── mariadb/               # BDD + dumps automatiques
+│   ├── smtp/                  # Postfix
+│   ├── zabbix/                # Serveur + frontend + enregistrement des hôtes
+│   ├── zabbix_agent/          # Agent sur les 9 LXC
+│   ├── grafana/               # Dashboards (datasource Zabbix provisionnée)
+│   ├── backup/                # Collecte des sauvegardes
+│   └── testlab/               # Générateur d'incidents
+├── infra/                     # ⚠️ OBSOLÈTE — voie de provisioning legacy (pct/
+│   │                          #   Docker) divergente des rôles. NE PAS utiliser :
+│   │                          #   la source de vérité est roles/ + site.yaml.
+│   │                          #   Scripts neutralisés par ATLAS_PROVISION_FORCE.
+│   ├── dmz_vlan20/            # provision_nginx.sh, nginx.conf, docker-compose.yml
+│   ├── lan_admin_vlan30/      # provision_glpi.sh, provision_zabbix.sh
+│   └── proxmox_iac/           # deploy_lxc.sh (CT 101-103, topologie divergente)
+├── scripts_pra/              # Scripts/notes PRA hors orchestration Ansible
+│   ├── backup/                # dump_mariadb.sh (+ .md)
+│   └── restore/
+└── docs/                      # Dossier documentaire (DAT, PRA, risques, audit)
+    ├── DAT.md                 # Dossier d'Architecture Technique
+    ├── Runbooks_PRA.md        # Procédures de restauration
+    ├── Matrice_Risques.md     # Analyse de risques
+    └── audit/                 # Rapports d'audit du dépôt
 ```
 
 ### Conventions du code (à respecter dans toute contribution)

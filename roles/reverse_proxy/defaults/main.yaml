@@ -7,6 +7,11 @@
 reverse_proxy_backend_ip: "10.20.0.11"
 reverse_proxy_backend_port: 80
 
+# En-tête Host transmis au backend GLPI. Doit correspondre au server_name du
+# vhost backend (roles/glpi/templates/vhost_glpi.conf.j2) pour un routage
+# explicite et robuste, et non dépendre du vhost par défaut implicite.
+reverse_proxy_backend_host: "atlapp01p.atlas.local"
+
 # ─── Nom public du service ───
 reverse_proxy_server_name: "atlas.internal"
 

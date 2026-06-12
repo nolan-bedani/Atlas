@@ -6,5 +6,6 @@
 
 auto {{ proxmox_network_bridge }}.{{ vlan.id }}
 iface {{ proxmox_network_bridge }}.{{ vlan.id }} inet static
-	address {{ vlan.gw }}/24
+	{# Préfixe dérivé de vlan.subnet (ex. 10.20.0.0/24 -> 24) pour ne pas figer /24 #}
+	address {{ vlan.gw }}/{{ vlan.subnet.split('/')[1] }}
 {% endfor %}

@@ -34,9 +34,12 @@
 - name: Déployer la règle sudo NOPASSWD limitée pour atlsvc
   ansible.builtin.copy:
     content: |
-      # Délégation sudo restreinte — Projet Atlas
-      # atlsvc ne peut que redémarrer/recharger des services via systemctl
-      atlsvc ALL=(root) NOPASSWD: /bin/systemctl restart *, /bin/systemctl reload *
+      # Délégation sudo restreinte — Projet Atlas (moindre privilège)
+      # atlsvc ne peut piloter QUE les services listés — pas de joker '*'
+      # (un joker sur systemctl ouvre une escalade : restart d'une unité arbitraire).
+      {% for svc in common_sudo_allowed_services %}
+      atlsvc ALL=(root) NOPASSWD: /bin/systemctl restart {{ svc }}, /bin/systemctl reload {{ svc }}, /bin/systemctl status {{ svc }}
+      {% endfor %}
     dest: /etc/sudoers.d/atlsvc
     owner: root
     group: root

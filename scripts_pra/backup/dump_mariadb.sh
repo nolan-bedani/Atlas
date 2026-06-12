@@ -4,11 +4,12 @@
 # Auteur   : glpi_backup (compte OS dédié, moindre privilège)
 # RPO cible: <= 20 minutes — planifier toutes les 15 minutes via cron.
 #
-# Crontab recommandée (ajouter via : crontab -e en tant que root) :
-# */15 * * * * root /scripts_pra/backup/dump_mariadb.sh
+# Crontab recommandée — déposer dans /etc/cron.d/glpi-backup (exécution sous
+# le compte de moindre privilège 'glpi_backup', PAS root) :
+# */15 * * * * glpi_backup /scripts_pra/backup/dump_mariadb.sh
 #
-# IMPORTANT : Ce script DOIT être exécuté par l'utilisateur OS 'glpi_backup'.
-#             Ne jamais l'exécuter en tant que root sauf pour le cron entry.
+# IMPORTANT : Ce script DOIT être exécuté par l'utilisateur OS 'glpi_backup'
+#             (accès lecture seule à la base via /.env). Jamais en root.
 # ==============================================================================
 set -euo pipefail
 
@@ -39,6 +40,17 @@ DATE_FMT="$(date '+%Y-%m-%d %H:%M:%S')"
 BACKUP_FILE="${BACKUP_DIR}/glpi_backup_${TIMESTAMP}.sql.gz"
 RETENTION_HOURS=48
 
+# Fichier d'identifiants temporaire (0600) : évite de passer le mot de passe en
+# argument de mysqldump (visible par tout utilisateur via 'ps'). Nettoyé à la sortie.
+DB_CNF="$(mktemp)"
+chmod 600 "${DB_CNF}"
+cat > "${DB_CNF}" <<EOF
+[client]
+user=${DB_USER}
+password=${DB_PASSWORD}
+EOF
+trap 'rm -f "${DB_CNF}"' EXIT
+
 # ------------------------------------------------------------------------------
 # 3. Création des répertoires si absents
 # ------------------------------------------------------------------------------
@@ -61,8 +73,7 @@ trap '_on_error' ERR
 # 5. Dump MariaDB/MySQL compressé
 # ------------------------------------------------------------------------------
 mysqldump \
-    --user="${DB_USER}" \
-    --password="${DB_PASSWORD}" \
+    --defaults-extra-file="${DB_CNF}" \
     --single-transaction \
     --quick \
     --lock-tables=false \
@@ -72,7 +83,9 @@ mysqldump \
 # ------------------------------------------------------------------------------
 # 6. Rotation : suppression des fichiers de plus de 48 heures
 # ------------------------------------------------------------------------------
-find "${BACKUP_DIR}" -maxdepth 1 -name "*.sql.gz" -mtime "+$((RETENTION_HOURS / 24))" -delete
+# -mmin (minutes) et non -mtime (jours) : -mtime +2 supprimait au-delà de 3 jours,
+# pas 48 h. On exprime la rétention exacte en minutes.
+find "${BACKUP_DIR}" -maxdepth 1 -name "*.sql.gz" -mmin "+$((RETENTION_HOURS * 60))" -delete
 
 # ------------------------------------------------------------------------------
 # 7. Journalisation du succès (consommé par Zabbix)

@@ -5,8 +5,28 @@
 
 server {
     # ─── Écoute et nom de serveur ───
+{% if zabbix_frontend_tls_enabled %}
+    # Accès réseau : HTTPS uniquement (le mot de passe Admin ne transite plus
+    # en clair). Le port en clair reste lié à la boucle locale pour l'API
+    # JSON-RPC interrogée par le rôle (http://localhost:{{ zabbix_frontend_port }}),
+    # qui ne quitte jamais l'hôte.
+    listen          {{ zabbix_frontend_tls_port }} ssl;
+    listen          127.0.0.1:{{ zabbix_frontend_port }};
+    server_name     {{ zabbix_server_ip }} atlzbx01p.atlas.local;
+
+    # ─── TLS (certificat interne auto-signé, hors VCS) ───
+    ssl_certificate     {{ zabbix_frontend_tls_dir }}/zabbix.crt;
+    ssl_certificate_key {{ zabbix_frontend_tls_dir }}/zabbix.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # ─── En-têtes de sécurité ───
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header X-Content-Type-Options nosniff always;
+{% else %}
     listen          {{ zabbix_frontend_port }};
     server_name     {{ zabbix_server_ip }} atlzbx01p.atlas.local;
+{% endif %}
 
     # ─── Racine du frontend ───
     root    /usr/share/zabbix;

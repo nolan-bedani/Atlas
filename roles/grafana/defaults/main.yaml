@@ -9,8 +9,21 @@
 grafana_port: 3000
 # Adresse IP du serveur Zabbix (atlzbx01p)
 grafana_zabbix_host: "10.30.0.12"
-# Port du frontend web Zabbix (nginx)
+# Port du frontend web Zabbix (nginx, accès en clair — boucle locale en TLS)
 grafana_zabbix_port: 8080
+
+# ─── Accès TLS au frontend Zabbix ───
+# Doit refléter zabbix_frontend_tls_enabled : la datasource pointe alors vers
+# le port HTTPS du frontend Zabbix (identifiants API non transmis en clair).
+grafana_zabbix_tls_enabled: true
+# Port HTTPS du frontend Zabbix (cf. zabbix_frontend_tls_port).
+grafana_zabbix_tls_port: 8443
+
+# ─── Compte Zabbix dédié à la datasource (lecture seule) ───
+# Compte de service à moindre privilège utilisé par Grafana pour interroger
+# l'API Zabbix, à la place du super-admin « Admin ». Créé par le rôle zabbix.
+# Son mot de passe est porté par le vault (vault_zabbix_grafana_password).
+grafana_zabbix_username: "grafana"
 
 # ─── Débogage ───
 

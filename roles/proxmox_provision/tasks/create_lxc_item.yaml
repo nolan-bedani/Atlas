@@ -14,7 +14,10 @@
     api_token_id: "{{ vault_proxmox_token_id | default(omit) }}"
     api_token_secret: "{{ vault_proxmox_token_secret | default(omit) }}"
     api_password: "{{ vault_proxmox_password | default(omit) }}"
-    validate_certs: false
+    # Vérification TLS de l'API Proxmox : paramétrable (défaut true). Le jeton/mot
+    # de passe API transitant ici, ne désactiver (proxmox_validate_certs: false)
+    # que temporairement face à un certificat auto-signé non ajouté au trust store.
+    validate_certs: "{{ proxmox_validate_certs }}"
     node: "{{ ansible_hostname }}"
     vmid: "{{ conteneur.vmid }}"
     hostname: "{{ conteneur.hostname }}"
@@ -25,7 +28,8 @@
     disk: "local:{{ conteneur.disk }}"
     cores: "{{ conteneur.cores }}"
     memory: "{{ conteneur.memory }}"
-    netif: '{"net0":"name=eth0,bridge=vmbr0,ip={{ conteneur.ip }}/24,gw={{ conteneur.gw }},tag={{ conteneur.vlan }}"}'
+    # Bridge issu du rôle réseau (proxmox_network_bridge) pour conserver une source unique.
+    netif: '{"net0":"name=eth0,bridge={{ proxmox_network_bridge | default("vmbr0") }},ip={{ conteneur.ip }}/24,gw={{ conteneur.gw }},tag={{ conteneur.vlan }}"}'
     pubkey: "{{ proxmox_provision_ssh_pubkey }}"
     tags: "atlas"
     description: "Projet Atlas PRA/DR | Role: {{ conteneur.role }} | Managed by Ansible"

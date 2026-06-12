@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ⚠️  OBSOLÈTE — doublon des rôles Ansible `glpi` + `mariadb` (source de vérité).
+# Cible le conteneur divergent CT 102 (cf. infra/proxmox_iac/deploy_lxc.sh).
+# Pour forcer :  ATLAS_PROVISION_FORCE=1 bash provision_glpi.sh
+if [ "${ATLAS_PROVISION_FORCE:-0}" != "1" ]; then
+  echo "[ABORT] Obsolète : utiliser les rôles Ansible 'glpi' et 'mariadb'." >&2
+  echo "        Forcer malgré le conflit : ATLAS_PROVISION_FORCE=1 bash $0" >&2
+  exit 2
+fi
 # =============================================================================
 # provision_glpi.sh
 #
@@ -115,30 +123,60 @@ echo "[OK]   MariaDB and Apache2 are enabled and running."
 #
 # The GLPI DB user is granted privileges only on the GLPI database
 # (principle of least privilege — no SUPER, no GRANT OPTION).
+#
+# Injection hardening (CLAUDE.md recommends strong passwords, which often
+# contain ', ", $ or backticks):
+#   - The DB name and user are validated against a strict identifier charset
+#     before use, so they cannot break out of the backtick-quoted identifiers.
+#   - The password is single-quoted in SQL with every embedded single quote
+#     doubled ('' is the SQL escape), so it is always a literal value.
+#   - Credentials are passed to the inner shell via the environment (not argv)
+#     and the SQL is fed on stdin, never interpolated into a `bash -c` string.
 # =============================================================================
+# Reject identifiers that are not [A-Za-z0-9_] to keep them safe inside `...`.
+if ! [[ "${GLPI_DB_NAME}" =~ ^[A-Za-z0-9_]+$ ]]; then
+    echo "[ERROR] GLPI_DB_NAME contient des caractères non autorisés (attendu : [A-Za-z0-9_])." >&2
+    exit 1
+fi
+if ! [[ "${GLPI_DB_USER}" =~ ^[A-Za-z0-9_]+$ ]]; then
+    echo "[ERROR] GLPI_DB_USER contient des caractères non autorisés (attendu : [A-Za-z0-9_])." >&2
+    exit 1
+fi
+
+# Build the SQL literal for the password by doubling every single quote (the
+# SQL escape for a quote inside a '...' literal). Done in this outer shell where
+# quoting is controllable; the result is passed to the container via stdin only.
+SQ="'"
+GLPI_DB_PASSWORD_SQL="${GLPI_DB_PASSWORD//${SQ}/${SQ}${SQ}}"
+
 echo "[INFO] Step 3/7 — Creating database '${GLPI_DB_NAME}' and user '${GLPI_DB_USER}' ..."
-pct exec "${CTID}" -- bash -c "
-    mysql -u root <<SQL
-CREATE DATABASE IF NOT EXISTS ${GLPI_DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '${GLPI_DB_USER}'@'localhost' IDENTIFIED BY '${GLPI_DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON ${GLPI_DB_NAME}.* TO '${GLPI_DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-SQL
-"
+printf '%s\n' \
+"CREATE DATABASE IF NOT EXISTS \`${GLPI_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
+"CREATE USER IF NOT EXISTS '${GLPI_DB_USER}'@'localhost' IDENTIFIED BY '${GLPI_DB_PASSWORD_SQL}';" \
+"GRANT ALL PRIVILEGES ON \`${GLPI_DB_NAME}\`.* TO '${GLPI_DB_USER}'@'localhost';" \
+"FLUSH PRIVILEGES;" \
+    | pct exec "${CTID}" -- mysql -u root
 echo "[OK]   Database '${GLPI_DB_NAME}' and user '${GLPI_DB_USER}'@'localhost' created."
 
 # =============================================================================
-# STEP 4 — Download GLPI archive inside the container
+# STEP 4 + 5 — Download and extract GLPI (idempotent)
+#
+# Idempotence: the download and extraction run ONLY when ${GLPI_DIR} is absent.
+# Re-extracting the archive over an existing install would overwrite core files
+# possibly patched after setup and could silently downgrade GLPI if the pinned
+# ${GLPI_VERSION} is older than what is already deployed. On a re-run with the
+# directory present, both steps are skipped and a notice is printed.
 # =============================================================================
-echo "[INFO] Step 4/7 — Downloading GLPI ${GLPI_VERSION} from GitHub ..."
-pct exec "${CTID}" -- bash -c "wget -q '${GLPI_URL}' -O /tmp/${GLPI_ARCHIVE}"
-echo "[OK]   GLPI ${GLPI_VERSION} downloaded to /tmp/${GLPI_ARCHIVE}."
+if pct exec "${CTID}" -- test -d "${GLPI_DIR}"; then
+    echo "[OK]   ${GLPI_DIR} existe déjà — téléchargement et extraction ignorés (idempotence)."
+else
+    echo "[INFO] Step 4/7 — Downloading GLPI ${GLPI_VERSION} from GitHub ..."
+    pct exec "${CTID}" -- bash -c "wget -q '${GLPI_URL}' -O /tmp/${GLPI_ARCHIVE}"
+    echo "[OK]   GLPI ${GLPI_VERSION} downloaded to /tmp/${GLPI_ARCHIVE}."
 
-# =============================================================================
-# STEP 5 — Extract GLPI and set ownership / permissions
-# =============================================================================
-echo "[INFO] Step 5/7 — Extracting GLPI to /var/www/html/ ..."
-pct exec "${CTID}" -- bash -c "tar -xzf /tmp/${GLPI_ARCHIVE} -C /var/www/html/"
+    echo "[INFO] Step 5/7 — Extracting GLPI to /var/www/html/ ..."
+    pct exec "${CTID}" -- bash -c "tar -xzf /tmp/${GLPI_ARCHIVE} -C /var/www/html/"
+fi
 
 echo "[INFO]           Setting ownership and permissions on ${GLPI_DIR} ..."
 pct exec "${CTID}" -- bash -c "chown -R www-data:www-data ${GLPI_DIR}"

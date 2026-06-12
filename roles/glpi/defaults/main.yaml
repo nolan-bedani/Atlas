@@ -14,5 +14,16 @@ glpi_checksum: ""
 glpi_webroot: "/var/www/glpi/public"
 glpi_data_dir: "/var/lib/glpi"
 
+# ─── Sources autorisées à joindre le backend GLPI en HTTP (port 80) ───
+# Seuls le reverse proxy (TLS amont) et la supervision Zabbix doivent y accéder.
+glpi_http_allowed_sources:
+  - "10.20.0.10"   # atlrp01p — reverse proxy
+  - "10.30.0.12"   # atlzbx01p — supervision Zabbix
+
+# ─── Vérification HTTP de l'application ───
+# Le contrôle s'exécute sur l'hôte GLPI lui-même : la boucle locale évite toute
+# dépendance à la renumérotation IP du backend.
+glpi_health_check_url: "http://127.0.0.1/"
+
 # ─── Mode debug ───
 glpi_debug: false

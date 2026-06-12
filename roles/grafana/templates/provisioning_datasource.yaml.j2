@@ -9,11 +9,23 @@ datasources:
     type: alexanderzobnin-zabbix-datasource
     uid: zabbix          # uid stable : référencé par les dashboards provisionnés
     access: proxy
+{% if grafana_zabbix_tls_enabled %}
+    # Frontend Zabbix servi en HTTPS : les identifiants API ne transitent plus
+    # en clair entre Grafana et Zabbix.
+    url: "https://{{ grafana_zabbix_host }}:{{ grafana_zabbix_tls_port }}/api_jsonrpc.php"
+{% else %}
     url: "http://{{ grafana_zabbix_host }}:{{ grafana_zabbix_port }}/api_jsonrpc.php"
+{% endif %}
     isDefault: true
     editable: false
     jsonData:
-      username: Admin
+      # Compte Zabbix dédié en lecture seule (moindre privilège) : Grafana
+      # n'a pas besoin du super-admin. Créé par le rôle zabbix.
+      username: "{{ grafana_zabbix_username }}"
       trends: true
+{% if grafana_zabbix_tls_enabled %}
+      # Certificat interne auto-signé : on n'exige pas de chaîne publique.
+      tlsSkipVerify: true
+{% endif %}
     secureJsonData:
-      password: "{{ vault_zabbix_admin_password }}"
+      password: "{{ vault_zabbix_grafana_password }}"

@@ -4,4 +4,5 @@
 # ══════════════════════════════════════════════
 
 [Time]
-NTP=pool.ntp.org
+NTP={{ common_ntp_servers | join(' ') }}
+FallbackNTP={{ common_ntp_fallback | join(' ') }}

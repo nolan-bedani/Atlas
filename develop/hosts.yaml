@@ -15,7 +15,7 @@ all:
     # ─── VLAN 90 — Management (bastion) ───
     mgmt:
       vars:
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'
       hosts:
         atlbst01p:
           ansible_host: 10.90.0.10
@@ -26,8 +26,8 @@ all:
     dmz:
       vars:
         ansible_ssh_common_args: >-
-          -o StrictHostKeyChecking=no
-          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=no -W %h:%p root@10.90.0.10"
+          -o StrictHostKeyChecking=accept-new
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=accept-new -W %h:%p root@10.90.0.10"
       hosts:
         atlrp01p:
           ansible_host: 10.20.0.10
@@ -40,8 +40,8 @@ all:
     lan_admin:
       vars:
         ansible_ssh_common_args: >-
-          -o StrictHostKeyChecking=no
-          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=no -W %h:%p root@10.90.0.10"
+          -o StrictHostKeyChecking=accept-new
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=accept-new -W %h:%p root@10.90.0.10"
       hosts:
         atldb01p:
           ansible_host: 10.30.0.10

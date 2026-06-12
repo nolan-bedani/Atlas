@@ -28,6 +28,21 @@
 set -euo pipefail
 
 # =============================================================================
+# ⚠️  OBSOLÈTE — SOURCE DE VÉRITÉ DIVERGENTE
+# Le provisioning canonical est le rôle Ansible `proxmox_provision`
+# (CTID / IP / hostnames pilotés par develop/hosts.yaml : 8 hôtes atl* en
+# 10.x.0.10-14). Ce script crée des conteneurs DIFFÉRENTS (CT 101-103, IP
+# .101-.103) qui ENTRERAIENT EN CONFLIT avec l'inventaire. Conservé comme
+# référence de bootstrap manuel uniquement. Pour l'exécuter délibérément :
+#   ATLAS_DEPLOY_LXC_FORCE=1 bash deploy_lxc.sh
+# =============================================================================
+if [[ "${ATLAS_DEPLOY_LXC_FORCE:-0}" != "1" ]]; then
+    echo "[ABORT] Script obsolète : utiliser le rôle Ansible 'proxmox_provision'." >&2
+    echo "        Pour forcer malgré le conflit : ATLAS_DEPLOY_LXC_FORCE=1 bash $0" >&2
+    exit 2
+fi
+
+# =============================================================================
 # CONFIGURATION — adjust these variables before running; do NOT scatter values
 # throughout the script body.
 # =============================================================================
@@ -92,6 +107,13 @@ create_ct() {
     local ip="$4"
     local gw="$5"
 
+    # Idempotence : ne pas relancer 'pct create' si le conteneur existe déjà
+    # (sinon échec + abort sous 'set -e' au second run).
+    if pct status "${ctid}" &>/dev/null; then
+        echo "[SKIP] CT ${ctid} (${hostname}) existe déjà — création ignorée (idempotent)."
+        return 0
+    fi
+
     echo "[INFO] Creating CT ${ctid} (${hostname}) on VLAN ${vlan} with IP ${ip} ..."
 
     pct create "${ctid}" "${TEMPLATE}" \
@@ -109,9 +131,8 @@ create_ct() {
         `# nesting=0: Docker-in-LXC is not required; disabling nesting reduces` \
         `# the kernel attack surface.`                                          \
         --ssh-public-keys "${SSH_PUBKEY_PATH}" \
-        --password       "" \
-        `# --password "": root password is explicitly disabled.`               \
-        `# SSH key (injected above) is the ONLY authentication method.`        \
+        `# Pas de --password : le compte root reste VERROUILLÉ (aucun mot de passe`  \
+        `# défini). --password "" ne verrouille PAS le compte. SSH par clé seul.`    \
         --nameserver     "${NAMESERVER}" \
         --searchdomain   "${SEARCHDOMAIN}" \
         --start          0

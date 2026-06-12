@@ -11,6 +11,13 @@ backup_glpi_filestore: "/var/lib/glpi/files"
 backup_db_host: "10.30.0.10"
 backup_db_dumps_dir: "/var/backups/atlas/db"
 
+# ─── Binlogs MariaDB (PITR — collectés hors site pour tenir le RPO <= 20 min) ───
+# Le compte de collecte (atlsvc) doit avoir un accès lecture sur ces fichiers.
+backup_db_binlog_dir: "/var/log/mysql"
+
+# ─── Fréquence de collecte hors site (minutes) — doit rester <= RPO (20 min) ───
+backup_collect_interval_min: 15
+
 # ─── IP du serveur de sauvegarde (source des rsync, pour UFW) ───
 backup_local_ip: "10.30.0.13"
 

@@ -9,7 +9,9 @@ set -euo pipefail
 LOG_FILE="{{ backup_log_dir }}/collect_dumps.log"
 SOURCE="{{ backup_remote_user }}@{{ backup_db_host }}:{{ backup_db_dumps_dir }}/"
 DEST="{{ backup_db_remote_dest }}/"
-SSH_OPTS="ssh -i {{ backup_ssh_key_path }} -o StrictHostKeyChecking=no"
+BINLOG_SOURCE="{{ backup_remote_user }}@{{ backup_db_host }}:{{ backup_db_binlog_dir }}/"
+BINLOG_DEST="{{ backup_db_remote_dest }}/binlogs/"
+SSH_OPTS="ssh -i {{ backup_ssh_key_path }} -o StrictHostKeyChecking=accept-new"
 RETENTION_JOURS={{ backup_retention_days }}
 
 # ─── Journalisation horodatée ───
@@ -27,6 +29,14 @@ log "DÉBUT collecte des dumps MariaDB : ${SOURCE} -> ${DEST}"
 
 # ─── Synchronisation rsync (sans --delete : la rotation est gérée localement) ───
 rsync -avz -e "${SSH_OPTS}" "${SOURCE}" "${DEST}" >> "${LOG_FILE}" 2>&1
+
+# ─── Collecte des binlogs MariaDB (PITR — RPO <= 20 min) ───
+# On ne récupère que les journaux binaires + leur index, pas tout /var/log/mysql.
+mkdir -p "${BINLOG_DEST}"
+log "Collecte des binlogs : ${BINLOG_SOURCE} -> ${BINLOG_DEST}"
+rsync -avz -e "${SSH_OPTS}" \
+  --include='mysql-bin.*' --include='*.index' --exclude='*' \
+  "${BINLOG_SOURCE}" "${BINLOG_DEST}" >> "${LOG_FILE}" 2>&1
 
 # ─── Rotation : suppression des dumps plus vieux que la rétention ───
 log "Rotation : suppression des fichiers de plus de ${RETENTION_JOURS} jours"

@@ -26,7 +26,7 @@
 
 - name: Vérifier que GLPI répond en HTTP
   ansible.builtin.uri:
-    url: "http://10.20.0.11/"
+    url: "{{ glpi_health_check_url }}"
     status_code: [200, 302]
   register: glpi_http_check
   retries: 3

@@ -10,7 +10,7 @@
 
 - name: Lire l'état actuel de l'API dans la configuration GLPI
   ansible.builtin.command: >
-    mysql glpi_db -N -e
+    mysql {{ vault_glpi_db_name }} -N -e
     "SELECT name, value FROM glpi_configs WHERE name IN ('enable_api','use_rest_api');"
   delegate_to: atldb01p
   register: glpi_seed_api_state
@@ -24,22 +24,30 @@
     sudo -u www-data php bin/console config:set url_base_api "{{ glpi_seed_api_url }}" &&
     sudo -u www-data php bin/console cache:clear
   when: "'enable_api\t1' not in glpi_seed_api_state.stdout"
+  register: glpi_seed_api_enable
+  # La tâche n'est jouée que lorsqu'une activation est nécessaire (when ci-dessus)
+  # → toute exécution constitue un changement réel. Échec explicite si une des
+  #   commandes console renvoie un code non nul.
+  changed_when: glpi_seed_api_enable.rc == 0
+  failed_when: glpi_seed_api_enable.rc != 0
 
-# ─── Jeton API du compte glpi (secret — no_log) ───
+# ─── Jeton API du compte super-admin sécurisé (secret — no_log) ───
+# Le compte « glpi » par défaut a été renommé en {{ glpi_admin_username }} par
+# harden_accounts.yaml ; le jeton est posé sur ce compte, plus sur glpi/glpi.
 
-- name: Lire le jeton API actuel du compte glpi
+- name: Lire le jeton API actuel du compte super-admin
   ansible.builtin.command: >
-    mysql glpi_db -N -e
-    "SELECT api_token FROM glpi_users WHERE name='glpi';"
+    mysql {{ vault_glpi_db_name }} -N -e
+    "SELECT api_token FROM glpi_users WHERE name='{{ glpi_admin_username }}';"
   delegate_to: atldb01p
   register: glpi_seed_token_state
   changed_when: false
   no_log: true
 
-- name: Poser le jeton API du compte glpi
+- name: Poser le jeton API du compte super-admin
   ansible.builtin.command: >
-    mysql glpi_db -N -e
-    "UPDATE glpi_users SET api_token='{{ vault_glpi_api_token }}' WHERE name='glpi';"
+    mysql {{ vault_glpi_db_name }} -N -e
+    "UPDATE glpi_users SET api_token='{{ vault_glpi_api_token }}' WHERE name='{{ glpi_admin_username }}';"
   delegate_to: atldb01p
   when: glpi_seed_token_state.stdout | trim != vault_glpi_api_token
   no_log: true

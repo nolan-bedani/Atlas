@@ -8,12 +8,27 @@
 #     (AES-256, mot de passe dans .vault_pass — lui aussi gitignored)
 
 # ─── API Proxmox ───
-# Authentification par jeton API (recommandé, révocable) :
-#   pveum user token add root@pam ansible --privsep 0
+# Authentification par jeton API (recommandé, révocable).
+#
+# Moindre privilège (CLAUDE.md) : NE PAS utiliser root@pam avec --privsep 0
+# (le jeton hériterait alors de tous les pouvoirs root sur l'hyperviseur).
+# Créer un utilisateur dédié, un rôle restreint aux opérations LXC, puis un
+# jeton AVEC séparation de privilèges (--privsep 1) :
+#   pveum role add AtlasProvision -privs \
+#     "VM.Allocate VM.Config.Disk VM.Config.CPU VM.Config.Memory \
+#      VM.Config.Network VM.Config.Options VM.PowerMgmt \
+#      Datastore.AllocateSpace Datastore.Audit"
+#   pveum user add ansible@pve
+#   pveum aclmod / -user ansible@pve -role AtlasProvision
+#   pveum user token add ansible@pve atlas --privsep 1
+#   pveum acl modify / -user 'ansible@pve!atlas' -role AtlasProvision
 # OU par mot de passe : remplacer les lignes token par vault_proxmox_password.
-vault_proxmox_host: "138.201.135.108"
-vault_proxmox_user: "root@pam"
-vault_proxmox_token_id: "ansible"
+#
+# NB : ne mettez aucune valeur réelle (IP, compte, id de jeton) dans ce fichier
+# .example, qui EST versionné — uniquement des placeholders CHANGE_ME.
+vault_proxmox_host: "CHANGE_ME"            # ex : IP/FQDN de l'API Proxmox (VLAN 90)
+vault_proxmox_user: "CHANGE_ME"            # ex : ansible@pve  (PAS root@pam)
+vault_proxmox_token_id: "CHANGE_ME"        # ex : atlas
 vault_proxmox_token_secret: "CHANGE_ME"
 # vault_proxmox_password: "CHANGE_ME"
 
@@ -29,11 +44,21 @@ vault_glpi_db_password: "CHANGE_ME"
 # ─── Zabbix (connexion base de données) ───
 vault_zabbix_db_password: "CHANGE_ME"
 
-# ─── Zabbix (compte Admin du frontend — utilisé par Grafana et l'API) ───
+# ─── Zabbix (compte Admin du frontend — super-admin, API d'automatisation) ───
 vault_zabbix_admin_password: "CHANGE_ME"
+
+# ─── Zabbix (compte de service Grafana — lecture seule, moindre privilège) ───
+# Compte dédié « grafana » créé par le rôle zabbix ; la datasource Grafana
+# l'utilise au lieu du super-admin Admin.
+vault_zabbix_grafana_password: "CHANGE_ME"
 
 # ─── Grafana (compte admin) ───
 vault_grafana_admin_password: "CHANGE_ME"
 
-# ─── GLPI (jeton API du compte glpi — données de démonstration) ───
+# ─── GLPI (compte super-administrateur — remplace le couple par défaut glpi/glpi) ───
+# Mot de passe fort (>= 12 caractères). Le compte « glpi » est renommé en
+# glpi_admin_username (défaut : atlasadmin) et reçoit ce mot de passe.
+vault_glpi_admin_password: "CHANGE_ME"
+
+# ─── GLPI (jeton API du compte super-admin — données de démonstration) ───
 vault_glpi_api_token: "CHANGE_ME"

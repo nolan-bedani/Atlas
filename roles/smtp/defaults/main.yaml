@@ -12,5 +12,10 @@ smtp_listen_ip: "10.30.0.11"
 # ─── Relais sortant éventuel (vide = remise directe) ───
 smtp_relayhost: ""
 
+# ─── Envoi d'un courriel de test réel (effet de bord) ───
+# false par défaut : la vérification se limite à l'écoute du port 25 (passive,
+# idempotente). Mettre à true ponctuellement pour valider la remise.
+smtp_send_test: false
+
 # ─── Mode debug ───
 smtp_debug: false

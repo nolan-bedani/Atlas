@@ -20,12 +20,16 @@
     msg: "Clé publique de sauvegarde : {{ backup_ssh_keypair.public_key }}"
   when: backup_debug | bool
 
-# ─── Autorisation de la clé sur les hôtes sources ───
+# ─── Autorisation de la clé sur les hôtes sources (restreinte) ───
+# Moindre privilège : la clé n'est utilisable que depuis l'IP du serveur de
+# sauvegarde et sans shell interactif / forwarding. Pour verrouiller davantage,
+# remplacer par command="rrsync -ro <dir>" (rrsync est fourni avec rsync).
 - name: "Autoriser la clé de sauvegarde pour atlsvc sur les hôtes sources"
   ansible.builtin.authorized_key:
     user: "{{ backup_remote_user }}"
     key: "{{ backup_ssh_keypair.public_key }}"
     comment: "atlas-backup@atlbkp01p"
+    key_options: 'from="{{ backup_local_ip }}",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding'
     state: present
   delegate_to: "{{ item }}"
   loop:

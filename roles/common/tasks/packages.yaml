@@ -5,10 +5,12 @@
 
 # ─── Mise à jour du système ───
 
-- name: Mettre à jour le cache APT et appliquer les mises à jour (dist-upgrade)
+# 'safe' par défaut : pas de dist-upgrade systématique (changements de noyau /
+# paquets majeurs à chaque run). Passer common_apt_upgrade=dist ponctuellement.
+- name: Mettre à jour le cache APT et appliquer les mises à jour de sécurité
   ansible.builtin.apt:
     update_cache: true
-    upgrade: dist
+    upgrade: "{{ common_apt_upgrade }}"
     cache_valid_time: 3600
 
 # ─── Installation des paquets essentiels ───

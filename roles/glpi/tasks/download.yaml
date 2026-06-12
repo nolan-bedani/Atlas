@@ -66,9 +66,19 @@
     group: www-data
     mode: "0644"
 
-# ─── Permissions ───
+# ─── Permissions (moindre privilège) ───
+# Le code GLPI appartient à root : le serveur web NE DOIT PAS pouvoir réécrire
+# son propre code (sinon une compromission applicative = RCE persistante).
+# Seules les arborescences de données/plugins sont accessibles en écriture à www-data.
+- name: Verrouiller la propriété du code GLPI sur root
+  ansible.builtin.file:
+    path: /var/www/glpi
+    state: directory
+    owner: root
+    group: www-data
+    recurse: true
 
-- name: Appliquer les permissions www-data sur les répertoires GLPI
+- name: Donner l'accès en écriture à www-data uniquement sur les données et plugins
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -76,5 +86,13 @@
     group: www-data
     recurse: true
   loop:
-    - /var/www/glpi
     - "{{ glpi_data_dir }}"
+    - /var/www/glpi/plugins
+
+# ─── Suppression de l'installeur web (sécurité) ───
+# Le routeur GLPI sert /install/install.php : laisser ce répertoire exposerait
+# la réinstallation / mise à jour de la base via le reverse proxy.
+- name: Supprimer le répertoire d'installation web de GLPI
+  ansible.builtin.file:
+    path: /var/www/glpi/install
+    state: absent

@@ -37,6 +37,8 @@ if command -v jq > /dev/null 2>&1; then
   log "jq présent."
 else
   log "jq absent — installation..."
+  # apt-get update préalable : un cache APT vide/périmé ferait échouer l'install (404).
+  DEBIAN_FRONTEND=noninteractive apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 fi
 
@@ -86,15 +88,21 @@ fi
 # Étape 3 — Arrêt et destruction des conteneurs
 # ══════════════════════════════════════════════
 COMPTEUR=0
+NB_ECHECS=0
 for vmid in ${ATLAS_VMIDS}; do
   log "Arrêt du conteneur ${vmid}..."
   pct stop "${vmid}" --timeout 10 || true   # déjà arrêté = échec légitime
+
+  # Lever la protection éventuelle (deploy_lxc.sh pose --protection 1),
+  # sinon pct destroy échoue systématiquement. La confirmation a déjà été donnée.
+  pct set "${vmid}" --protection 0 || true
 
   log "Destruction du conteneur ${vmid} (--purge)..."
   if pct destroy "${vmid}" --purge; then
     COMPTEUR=$((COMPTEUR + 1))
     log "Conteneur ${vmid} supprimé."
   else
+    NB_ECHECS=$((NB_ECHECS + 1))
     log "ATTENTION : échec de la destruction du conteneur ${vmid} — passage au suivant."
   fi
 done
@@ -107,3 +115,8 @@ echo "════════════════════════�
 echo " ✅ Reset Atlas terminé : ${COMPTEUR}/${NB_TOTAL} conteneurs supprimés"
 echo "═══════════════════════════════════════════════════════"
 log "${COMPTEUR} conteneurs supprimés."
+
+# Échec global si au moins une destruction a échoué (reset incomplet en exercice PRA).
+if [ "${NB_ECHECS}" -gt 0 ]; then
+  erreur "${NB_ECHECS} conteneur(s) non supprimé(s) — reset incomplet."
+fi

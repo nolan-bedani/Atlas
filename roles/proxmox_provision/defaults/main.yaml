@@ -3,7 +3,17 @@
 # Rôle : proxmox_provision — variables par défaut
 # ══════════════════════════════════════════════
 
+# ─── Vérification TLS de l'API Proxmox ───
+# Activée par défaut (le jeton/mot de passe API transite en clair sinon).
+# Surchargeable à false (group_vars/host_vars) face à un certificat auto-signé
+# tant que la CA interne n'est pas ajoutée au trust store du contrôleur.
+proxmox_validate_certs: true
+
 # ─── Clé publique SSH injectée dans les conteneurs ───
+# Clé PUBLIQUE de l'opérateur (non secrète) : conserver une valeur par défaut ici
+# est acceptable. Surchargeable via group_vars/host_vars pour gérer la rotation
+# de clé ou un PRA sur un autre poste, p. ex. :
+#   proxmox_provision_ssh_pubkey: "{{ lookup('file', '~/.ssh/atladm.pub') }}"
 proxmox_provision_ssh_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGExy+C98JHFxEVLa3pi7P3EGdCDLHcsmKYpIldns2j atladm@atlas"
 
 # ─── Définition des conteneurs LXC du projet Atlas ───

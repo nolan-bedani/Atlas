@@ -14,8 +14,25 @@ zabbix_release_deb_url: "https://repo.zabbix.com/zabbix/7.0/debian/pool/main/z/z
 zabbix_server_ip: "10.30.0.12"
 # Adresse IP du serveur MariaDB distant (atldb01p)
 zabbix_db_host: "10.30.0.10"
-# Port d'écoute du frontend web (nginx)
+# Port d'écoute du frontend web (nginx). En mode TLS il reste lié à la boucle
+# locale (API JSON-RPC interne) ; l'accès réseau passe par le port TLS.
 zabbix_frontend_port: 8080
+
+# ─── TLS du frontend (HTTPS obligatoire — CLAUDE.md) ───
+# Le mot de passe Admin ne doit pas transiter en clair (login web, Grafana).
+zabbix_frontend_tls_enabled: true
+# Port HTTPS exposé au réseau pour le frontend web.
+zabbix_frontend_tls_port: 8443
+# Répertoire des certificats internes (hors VCS, générés sur l'hôte).
+zabbix_frontend_tls_dir: "/etc/nginx/ssl"
+
+# ─── Compte de service Grafana (lecture seule) ───
+# Compte Zabbix dédié à Grafana, à moindre privilège (rôle natif « User role »),
+# créé via l'API à la place du super-admin « Admin ». Son mot de passe est porté
+# par le vault (vault_zabbix_grafana_password, hors VCS).
+zabbix_grafana_username: "grafana"
+# Groupe d'utilisateurs Zabbix portant les droits en lecture seule sur Atlas.
+zabbix_grafana_usergroup: "Grafana RO"
 
 # ─── Débogage ───
 

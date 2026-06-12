@@ -3,6 +3,12 @@
 # Rôle : zabbix — frontend web (nginx + php-fpm)
 # ══════════════════════════════════════════════
 
+# ─── Certificat TLS du frontend (HTTPS obligatoire) ───
+
+- name: Préparer le certificat TLS du frontend Zabbix
+  ansible.builtin.import_tasks: tls.yaml
+  when: zabbix_frontend_tls_enabled
+
 # ─── Configuration nginx du frontend ───
 
 - name: Déployer la configuration nginx du frontend Zabbix
@@ -52,8 +58,21 @@
   notify: Redémarrer php-fpm (zabbix)
 
 # ─── Pare-feu UFW ───
+# En HTTPS, le port en clair est lié à la boucle locale (API interne) : seul le
+# port TLS est exposé au réseau. Sinon (TLS désactivé), on ouvre le port en clair.
 
-- name: Autoriser l'accès au frontend Zabbix (port {{ zabbix_frontend_port }})
+- name: Autoriser l'accès HTTPS au frontend Zabbix (port {{ zabbix_frontend_tls_port }})
+  community.general.ufw:
+    rule: allow
+    port: "{{ zabbix_frontend_tls_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.30.0.0/24
+    - 10.90.0.0/24
+  when: zabbix_frontend_tls_enabled
+
+- name: Autoriser l'accès HTTP au frontend Zabbix (port {{ zabbix_frontend_port }})
   community.general.ufw:
     rule: allow
     port: "{{ zabbix_frontend_port }}"
@@ -62,6 +81,7 @@
   loop:
     - 10.30.0.0/24
     - 10.90.0.0/24
+  when: not zabbix_frontend_tls_enabled
 
 - name: Autoriser le trapper Zabbix (port 10051)
   community.general.ufw:

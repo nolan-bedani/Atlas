@@ -10,7 +10,10 @@ mariadb_bind_address: "10.30.0.10"
 mariadb_backup_dir: "/var/backups/atlas/db"
 
 # ─── Nombre de dumps conservés (rotation) ───
-mariadb_backup_retention: 7
+# Le dump tourne toutes les 15 min (≈ 96 dumps/jour) : 7 fichiers ne couvraient
+# que ~1h45 d'historique local. On vise ~48 h de granularité 15 min (48 × 96/24)
+# pour garder un horizon cohérent et permettre une restauration locale récente.
+mariadb_backup_retention: 192
 
 # ─── Mode debug ───
 mariadb_debug: false

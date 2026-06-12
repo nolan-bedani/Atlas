@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# ⚠️  OBSOLÈTE — doublon du rôle Ansible `reverse_proxy` (LA source de vérité).
+# Cible le conteneur divergent CT 101 (cf. infra/proxmox_iac/deploy_lxc.sh) et
+# pousse un nginx.conf statique qui diverge du template du rôle. Pour forcer :
+#   ATLAS_PROVISION_FORCE=1 bash provision_nginx.sh
+if [ "${ATLAS_PROVISION_FORCE:-0}" != "1" ]; then
+  echo "[ABORT] Obsolète : utiliser le rôle Ansible 'reverse_proxy'." >&2
+  echo "        Forcer malgré le conflit : ATLAS_PROVISION_FORCE=1 bash $0" >&2
+  exit 2
+fi
 # =============================================================================
 # provision_nginx.sh
 #
@@ -100,23 +109,33 @@ pct exec "${CTID}" -- mkdir -p "${CERTS_DIR}"
 echo "[OK]   ${CERTS_DIR} created."
 
 # =============================================================================
-# STEP 3 — Generate a self-signed TLS certificate
+# STEP 3 — Generate a self-signed TLS certificate (only if absent)
+#
+# Idempotence: the key/cert are generated ONLY when the private key is missing.
+# Regenerating on every run would change the certificate fingerprint (breaking
+# TLS exceptions already accepted by clients) and, worse, overwrite a PKI/Let's
+# Encrypt key installed manually at the same path. A re-run therefore preserves
+# existing TLS material.
 #
 # PRODUCTION: replace self-signed certs with PKI/Let's Encrypt certs and
 # update the symlinks created in Step 4.
 # =============================================================================
-echo "[INFO] Step 3/7 — Generating self-signed TLS certificate (${TLS_DAYS} days) ..."
-pct exec "${CTID}" -- openssl req -x509 -nodes \
-    -days    "${TLS_DAYS}"  \
-    -newkey  rsa:4096       \
-    -keyout  "${TLS_KEY}"   \
-    -out     "${TLS_CERT}"  \
-    -subj    "${TLS_SUBJ}"
-# Restrict private key permissions: readable only by root.
-pct exec "${CTID}" -- chmod 600 "${TLS_KEY}"
-echo "[OK]   Self-signed certificate generated."
-echo "       Key : ${TLS_KEY}"
-echo "       Cert: ${TLS_CERT}"
+if pct exec "${CTID}" -- test -f "${TLS_KEY}"; then
+    echo "[OK]   TLS material already present (${TLS_KEY}) — generation skipped (idempotence)."
+else
+    echo "[INFO] Step 3/7 — Generating self-signed TLS certificate (${TLS_DAYS} days) ..."
+    pct exec "${CTID}" -- openssl req -x509 -nodes \
+        -days    "${TLS_DAYS}"  \
+        -newkey  rsa:4096       \
+        -keyout  "${TLS_KEY}"   \
+        -out     "${TLS_CERT}"  \
+        -subj    "${TLS_SUBJ}"
+    # Restrict private key permissions: readable only by root.
+    pct exec "${CTID}" -- chmod 600 "${TLS_KEY}"
+    echo "[OK]   Self-signed certificate generated."
+    echo "       Key : ${TLS_KEY}"
+    echo "       Cert: ${TLS_CERT}"
+fi
 
 # =============================================================================
 # STEP 4 — Create symlinks so nginx.conf paths resolve without modification
@@ -125,15 +144,26 @@ echo "       Cert: ${TLS_CERT}"
 #   ssl_certificate     /etc/nginx/certs/fullchain.pem
 #   ssl_certificate_key /etc/nginx/certs/privkey.pem
 #
+# Idempotence: a symlink (or file) already present at the expected path is left
+# untouched, so a manual repoint to PKI/Let's Encrypt material survives a re-run.
+# Only missing links are (re)created toward the self-signed material.
+#
 # PRODUCTION: replace self-signed certs with PKI/Let's Encrypt certs and
 # update the symlinks below to point to the new material.
 # =============================================================================
 echo "[INFO] Step 4/7 — Creating symlinks in ${CERTS_DIR} ..."
-pct exec "${CTID}" -- ln -sf "${TLS_KEY}"  "${SYMLINK_KEY}"
-pct exec "${CTID}" -- ln -sf "${TLS_CERT}" "${SYMLINK_CERT}"
-echo "[OK]   Symlinks created:"
-echo "       ${SYMLINK_KEY}  -> ${TLS_KEY}"
-echo "       ${SYMLINK_CERT} -> ${TLS_CERT}"
+if pct exec "${CTID}" -- test -e "${SYMLINK_KEY}"; then
+    echo "[OK]   ${SYMLINK_KEY} existe déjà — conservé (idempotence)."
+else
+    pct exec "${CTID}" -- ln -s "${TLS_KEY}" "${SYMLINK_KEY}"
+    echo "[OK]   ${SYMLINK_KEY}  -> ${TLS_KEY}"
+fi
+if pct exec "${CTID}" -- test -e "${SYMLINK_CERT}"; then
+    echo "[OK]   ${SYMLINK_CERT} existe déjà — conservé (idempotence)."
+else
+    pct exec "${CTID}" -- ln -s "${TLS_CERT}" "${SYMLINK_CERT}"
+    echo "[OK]   ${SYMLINK_CERT} -> ${TLS_CERT}"
+fi
 
 # =============================================================================
 # STEP 5 — Push the local nginx.conf into the container

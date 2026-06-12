@@ -9,6 +9,7 @@ Host {{ host.name }}
     HostName {{ host.ip }}
     User root
     IdentityFile /root/.ssh/atlas_ed25519
-    StrictHostKeyChecking no
+    {# accept-new : confiance au 1er contact (TOFU) mais alerte si la clé change #}
+    StrictHostKeyChecking accept-new
 
 {% endfor %}

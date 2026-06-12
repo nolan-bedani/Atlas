@@ -23,7 +23,7 @@
   changed_when: "'zabbix' not in zabbix_db_presente.stdout"
   delegate_to: atldb01p
 
-# ─── Création de l'utilisateur applicatif ───
+# ─── Création / convergence de l'utilisateur applicatif ───
 
 # Le serveur Zabbix (10.30.0.12) se connecte à la BDD distante :
 # l'utilisateur doit donc être zabbix@'10.30.0.12' et non @localhost.
@@ -35,14 +35,20 @@
   changed_when: false
   delegate_to: atldb01p
 
-- name: Créer l'utilisateur MySQL zabbix et lui accorder les privilèges
+# CREATE USER IF NOT EXISTS + ALTER USER : le mot de passe est appliqué à CHAQUE
+# run (ALTER USER ... IDENTIFIED BY), donc une rotation du secret vault se
+# propage en base au lieu de dériver (création unique « si absent »). ALTER USER
+# est idempotent : il fixe le mot de passe à la valeur du vault à chaque fois.
+- name: Créer/converger l'utilisateur MySQL zabbix et son mot de passe
   ansible.builtin.shell: >
-    mysql -e "CREATE USER 'zabbix'@'10.30.0.12'
+    mysql -e "CREATE USER IF NOT EXISTS 'zabbix'@'10.30.0.12'
+    IDENTIFIED BY '{{ vault_zabbix_db_password }}';
+    ALTER USER 'zabbix'@'10.30.0.12'
     IDENTIFIED BY '{{ vault_zabbix_db_password }}';
     GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'10.30.0.12';
     FLUSH PRIVILEGES;"
-  when: zabbix_db_user_present.stdout | int == 0
   no_log: true
+  changed_when: zabbix_db_user_present.stdout | int == 0
   delegate_to: atldb01p
 
 # ─── Vérification de l'import du schéma ───
@@ -55,30 +61,56 @@
   changed_when: false
   delegate_to: atldb01p
 
-# ─── Import du schéma initial ───
-
-# Le schéma contient des fonctions stockées : la création de fonctions
-# doit être autorisée temporairement le temps de l'import.
-- name: Activer temporairement log_bin_trust_function_creators
-  ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+# ─── Import du schéma initial (atomique : rollback si échec partiel) ───
+# Sans rollback, un import interrompu laisse un demi-schéma : la garde
+# « tables == 0 » verrait alors des tables et SAUTERAIT l'import au run suivant,
+# bloquant définitivement le déploiement. On purge donc la base en cas d'échec.
+- name: Importer le schéma Zabbix de façon atomique
   when: zabbix_tables_count.stdout | int == 0
-  delegate_to: atldb01p
+  block:
+    - name: Activer temporairement log_bin_trust_function_creators
+      ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+      delegate_to: atldb01p
 
-# Les scripts SQL sont présents sur atlzbx01p (paquet zabbix-sql-scripts) :
-# l'import s'effectue depuis atlzbx01p vers la BDD distante.
-- name: Importer le schéma initial de la base zabbix
-  ansible.builtin.shell: >
-    set -o pipefail &&
-    zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz |
-    mysql -h 10.30.0.10 -u zabbix -p"$ZBX_DB_PASS" zabbix
-  args:
-    executable: /bin/bash
-  environment:
-    ZBX_DB_PASS: "{{ vault_zabbix_db_password }}"
-  when: zabbix_tables_count.stdout | int == 0
-  no_log: true
+    # Les scripts SQL sont présents sur atlzbx01p (paquet zabbix-sql-scripts).
+    - name: Importer le schéma initial de la base zabbix
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz |
+        mysql -h 10.30.0.10 -u zabbix -p"$ZBX_DB_PASS" zabbix
+      args:
+        executable: /bin/bash
+      environment:
+        ZBX_DB_PASS: "{{ vault_zabbix_db_password }}"
+      no_log: true
 
-- name: Désactiver log_bin_trust_function_creators après l'import
-  ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 0;"
-  when: zabbix_tables_count.stdout | int == 0
-  delegate_to: atldb01p
+    # Le schéma crée Admin/zabbix (mot de passe par défaut connu — CLAUDE.md).
+    # Remplacé par le mot de passe fort du vault (bcrypt — requiert passlib).
+    - name: Sécuriser le mot de passe du compte Admin Zabbix par défaut
+      ansible.builtin.command: >
+        mysql zabbix -e
+        "UPDATE users SET passwd='{{ vault_zabbix_admin_password | password_hash('bcrypt') }}'
+          WHERE username='Admin';"
+      delegate_to: atldb01p
+      no_log: true
+      changed_when: true
+
+    - name: Désactiver log_bin_trust_function_creators après l'import
+      ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+      delegate_to: atldb01p
+  rescue:
+    - name: "Rollback — désactiver log_bin_trust_function_creators"
+      ansible.builtin.command: mysql -e "SET GLOBAL log_bin_trust_function_creators = 0;"
+      delegate_to: atldb01p
+
+    - name: "Rollback — purger la base zabbix après un import partiel"
+      ansible.builtin.command: >
+        mysql -e "DROP DATABASE IF EXISTS zabbix;
+        CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
+      delegate_to: atldb01p
+
+    - name: "Échec explicite — import du schéma Zabbix à relancer"
+      ansible.builtin.fail:
+        msg: >-
+          Import du schéma Zabbix échoué : base purgée et recréée vide.
+          Relancer le playbook pour réessayer un import propre.

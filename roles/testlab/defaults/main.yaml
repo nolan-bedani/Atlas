@@ -13,5 +13,17 @@ testlab_cpu_workers: 2
 # ─── Scénario disque : taille du fichier de remplissage (Mo) ───
 testlab_disk_fill_mb: 2500
 
+# ─── Pare-feu : sous-réseaux autorisés à joindre le HTTP du testlab ───
+# Restreint aux VLAN Atlas (10.30 = Zabbix/supervision, 10.90 = MGMT/bastion)
+# au lieu d'ouvrir tout 10.0.0.0/8.
+testlab_http_allowed_subnets:
+  - "10.30.0.0/24"
+  - "10.90.0.0/24"
+
+# ─── Hôte de lab autorisé (garde-fou du script chaos.sh) ───
+# chaos.sh refuse de s'exécuter sur tout autre hôte pour éviter d'arrêter
+# des services de production (nginx du reverse proxy / frontend Zabbix).
+testlab_expected_host: "atltst01p"
+
 # ─── Mode debug ───
 testlab_debug: false

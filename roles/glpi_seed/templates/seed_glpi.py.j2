@@ -271,14 +271,24 @@ def main():
         f"Tickets : {nb_crees}\n"
         f"Échecs API : {echecs}\n"
     )
-    os.makedirs(os.path.dirname(MARQUEUR), exist_ok=True)
-    with open(MARQUEUR, "w", encoding="utf-8") as marqueur:
-        marqueur.write(recap)
-
     print(
         f"Résumé : {len(ids_categories)} catégories, {len(ids_utilisateurs)} utilisateurs, "
         f"{len(ids_ordinateurs)} ordinateurs, {nb_crees} tickets ({echecs} échec(s) API)."
     )
+
+    # Le marqueur run-once n'est écrit qu'en cas de succès complet : si des appels
+    # API ont échoué, on sort en erreur pour qu'Ansible le signale et qu'un re-run
+    # reste possible (sinon args.creates figerait définitivement un seed incomplet).
+    if echecs > 0:
+        print(
+            f"ERREUR : {echecs} appel(s) API en échec — marqueur non écrit, "
+            "le remplissage devra être rejoué."
+        )
+        sys.exit(1)
+
+    os.makedirs(os.path.dirname(MARQUEUR), exist_ok=True)
+    with open(MARQUEUR, "w", encoding="utf-8") as marqueur:
+        marqueur.write(recap)
 
 
 if __name__ == "__main__":

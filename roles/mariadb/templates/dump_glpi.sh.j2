@@ -48,6 +48,29 @@ if [ "${RC_DUMP}" -ne 0 ] || [ "${RC_GZIP}" -ne 0 ]; then
     exit 1
 fi
 
+# ─── Vérification d'intégrité du dump (évite de conserver un dump tronqué) ───
+# 1) gzip -t : l'archive doit être décompressable sans erreur.
+# 2) taille > 0 : se prémunir d'un fichier vide.
+# 3) marqueur '-- Dump completed' : mysqldump l'écrit en toute fin de dump,
+#    sa présence garantit que le flux n'a pas été tronqué.
+TAILLE_OCTETS=$(stat -c '%s' "${FICHIER}" 2>/dev/null || echo 0)
+if ! gzip -t "${FICHIER}" 2>/dev/null; then
+    log "ERREUR : archive gzip corrompue (gzip -t a échoué), fichier supprimé."
+    rm -f "${FICHIER}"
+    exit 1
+fi
+if [ "${TAILLE_OCTETS}" -le 0 ]; then
+    log "ERREUR : dump vide (taille=${TAILLE_OCTETS} octets), fichier supprimé."
+    rm -f "${FICHIER}"
+    exit 1
+fi
+if ! zcat "${FICHIER}" | tail -n 5 | grep -q 'Dump completed'; then
+    log "ERREUR : dump tronqué (marqueur '-- Dump completed' absent), fichier supprimé."
+    rm -f "${FICHIER}"
+    exit 1
+fi
+log "Intégrité du dump vérifiée (gzip -t OK, taille=${TAILLE_OCTETS} octets, marqueur de fin présent)."
+
 # ─── Bilan ───
 DUREE=$(( $(date +%s) - DEBUT ))
 TAILLE=$(du -h "${FICHIER}" | cut -f1)

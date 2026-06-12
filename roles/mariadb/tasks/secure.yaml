@@ -4,10 +4,19 @@
 # ══════════════════════════════════════════════
 
 # ─── Mot de passe root ───
+# Le secret passe par une variable d'environnement (lue depuis stdin par mysql)
+# et non en argument : il n'apparaît donc pas dans /proc/<pid>/cmdline (ps).
+# Au premier run, root est authentifié via unix_socket (exécution en root).
 - name: Définir le mot de passe root MariaDB (première exécution uniquement)
-  ansible.builtin.shell: mysqladmin -u root password '{{ vault_mariadb_root_password }}'
+  ansible.builtin.shell: >
+    mysql -u root -N -e
+    "ALTER USER 'root'@'localhost'
+    IDENTIFIED BY '$MARIADB_ROOT_PASSWORD';
+    FLUSH PRIVILEGES;"
   args:
     creates: /root/.my.cnf
+  environment:
+    MARIADB_ROOT_PASSWORD: "{{ vault_mariadb_root_password }}"
   no_log: true
 
 - name: Déployer le fichier d'authentification /root/.my.cnf
@@ -57,4 +66,22 @@
 - name: Supprimer la base de test
   ansible.builtin.command: mysql -e "DROP DATABASE IF EXISTS test;"
   when: mariadb_base_test.stdout | trim | length > 0
+  changed_when: true
+
+# ─── Suppression des comptes root accessibles à distance ───
+# Étape standard de mysql_secure_installation : seul root@localhost/127.0.0.1/::1
+# doit subsister (le serveur écoute sur le réseau via mariadb_bind_address).
+- name: Compter les comptes root accessibles à distance
+  ansible.builtin.command: >
+    mysql -N -B -e "SELECT COUNT(*) FROM mysql.global_priv
+    WHERE User='root' AND Host NOT IN ('localhost','127.0.0.1','::1');"
+  register: mariadb_root_distants
+  changed_when: false
+
+- name: Supprimer les comptes root accessibles à distance
+  ansible.builtin.shell: >
+    mysql -N -e "DELETE FROM mysql.global_priv
+    WHERE User='root' AND Host NOT IN ('localhost','127.0.0.1','::1');
+    FLUSH PRIVILEGES;"
+  when: (mariadb_root_distants.stdout | trim | int) > 0
   changed_when: true

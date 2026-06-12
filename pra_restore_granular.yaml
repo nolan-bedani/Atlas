@@ -10,6 +10,17 @@
   hosts: atldb01p
   gather_facts: false
   tasks:
+    # ─── Vérifications préalables (avant toute action / journalisation) ───
+    - name: "Vérifier que la variable pra_target_dump est fournie"
+      ansible.builtin.assert:
+        that:
+          - pra_target_dump is defined
+          - pra_target_dump | length > 0
+        fail_msg: >-
+          La variable pra_target_dump est obligatoire. Relancez le playbook avec :
+          -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_YYYYMMDD_HHMMSS.sql.gz"
+        success_msg: "Dump cible fourni : {{ pra_target_dump }}"
+
     # ─── Horodatage de début ───
     - name: "Enregistrer l'horodatage de début (epoch)"
       ansible.builtin.set_fact:
@@ -26,20 +37,9 @@
     - name: "Journaliser le début de la restauration granulaire"
       ansible.builtin.shell: >
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] DÉBUT restauration granulaire —
-        dump : {{ pra_target_dump | default('NON DÉFINI') }}"
+        dump : {{ pra_target_dump }}"
         >> /var/log/atlas/pra_restore_granular.log
       changed_when: true
-
-    # ─── Vérifications préalables ───
-    - name: "Vérifier que la variable pra_target_dump est fournie"
-      ansible.builtin.assert:
-        that:
-          - pra_target_dump is defined
-          - pra_target_dump | length > 0
-        fail_msg: >-
-          La variable pra_target_dump est obligatoire. Relancez le playbook avec :
-          -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_YYYYMMDD_HHMMSS.sql.gz"
-        success_msg: "Dump cible fourni : {{ pra_target_dump }}"
 
     - name: "Vérifier l'existence du dump sur atldb01p"
       ansible.builtin.stat:
@@ -78,13 +78,19 @@
     # IMPORTANT : --no-create-info et --insert-ignore garantissent que les
     # tickets créés APRÈS l'incident ne sont JAMAIS écrasés : seules les
     # lignes absentes de la production seront réinsérées.
+    # umask 077 : le fichier d'export (contenu métier : tickets, suivis,
+    # solutions) est créé en 0600, illisible par les autres utilisateurs
+    # locaux jusqu'à sa suppression.
     - name: "Exporter les tables de tickets depuis la base temporaire"
       ansible.builtin.shell: >
+        umask 077;
         mysqldump --no-create-info --skip-add-drop-table --insert-ignore
         glpi_restore_tmp
         glpi_tickets glpi_tickets_users glpi_tickets_groups
         glpi_itilsolutions glpi_itilfollowups
         > /tmp/tickets_restore.sql
+      args:
+        executable: /bin/bash
       changed_when: true
       no_log: true
 
@@ -96,6 +102,22 @@
         mysql glpi_db < /tmp/tickets_restore.sql
       changed_when: true
       no_log: true
+
+    # ─── Vérification post-fusion ───
+    # On compte les tickets présents en production après la fusion pour
+    # confirmer que la réinjection s'est bien déroulée (asymétrie corrigée
+    # par rapport à pra_restore_full.yaml qui comptait déjà les tickets).
+    - name: "Compter les tickets en production après la fusion"
+      ansible.builtin.command: >
+        mysql -N -e "SELECT COUNT(*) FROM glpi_db.glpi_tickets;"
+      register: pra_tickets_count
+      changed_when: false
+
+    - name: "Afficher le nombre de tickets en production après la fusion"
+      ansible.builtin.debug:
+        msg: >-
+          Vérification post-fusion : {{ pra_tickets_count.stdout | trim }}
+          tickets présents dans glpi_db.glpi_tickets.
 
     # ─── Nettoyage ───
     - name: "Supprimer la base temporaire glpi_restore_tmp"

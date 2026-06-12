@@ -115,7 +115,9 @@
 
 # ─── Enregistrement des hôtes (logique en deux passes) ───
 
-# Première passe : recenser les hôtes Atlas déjà déclarés dans Zabbix
+# Première passe : recenser les hôtes Atlas déjà déclarés dans Zabbix.
+# On récupère aussi hostid et l'interface agent (interfaceid + ip) pour pouvoir
+# réconcilier les hôtes existants (mise à jour) et non plus seulement créer.
 - name: Recenser les hôtes Atlas déjà présents dans Zabbix
   ansible.builtin.uri:
     url: "{{ zabbix_api_url }}"
@@ -131,6 +133,11 @@
           host: "{{ zabbix_monitored_hosts | map(attribute='name') | list }}"
         output:
           - host
+        selectInterfaces:
+          - interfaceid
+          - main
+          - type
+          - ip
       id: 5
     status_code: 200
   register: zabbix_api_hosts_get
@@ -142,8 +149,17 @@
   ansible.builtin.set_fact:
     zabbix_existing_host_names: "{{ zabbix_api_hosts_get.json.result | map(attribute='host') | list }}"
 
-# Seconde passe : créer uniquement les hôtes absents (idempotence)
-- name: Enregistrer chaque hôte Atlas
+# Index hostname -> objet hôte (hostid + interfaces) pour les mises à jour.
+- name: Indexer les hôtes existants (hostid et interfaces)
+  ansible.builtin.set_fact:
+    zabbix_existing_hosts_by_name: >-
+      {{ dict(zabbix_api_hosts_get.json.result
+              | map(attribute='host') | list
+              | zip(zabbix_api_hosts_get.json.result)) }}
+  no_log: true
+
+# Seconde passe (a) : créer uniquement les hôtes absents (idempotence)
+- name: Enregistrer chaque hôte Atlas absent
   ansible.builtin.uri:
     url: "{{ zabbix_api_url }}"
     method: POST
@@ -175,6 +191,224 @@
   loop: "{{ zabbix_monitored_hosts }}"
   when: item.name not in zabbix_existing_host_names
 
+# Seconde passe (b) : réconcilier les hôtes DÉJÀ présents (dérive
+# groupe/template). host.update réaffirme l'appartenance au groupe Atlas et le
+# template Linux ; sans cela, une modification manuelle dériverait de la
+# définition Ansible. Idempotent côté Zabbix (aucun changement si déjà conforme).
+- name: Réconcilier les hôtes Atlas existants (groupe et template)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: host.update
+      params:
+        hostid: "{{ zabbix_existing_hosts_by_name[item.name].hostid }}"
+        groups:
+          - groupid: "{{ zabbix_atlas_groupid }}"
+        templates:
+          - templateid: "{{ zabbix_linux_templateid }}"
+      id: 7
+    status_code: 200
+  register: zabbix_api_host_update
+  failed_when: zabbix_api_host_update.json.result is not defined
+  changed_when: true
+  no_log: true
+  loop: "{{ zabbix_monitored_hosts }}"
+  when: item.name in zabbix_existing_host_names
+
+# Seconde passe (c) : réconcilier l'adresse IP de l'interface agent si elle a
+# dérivé (changement d'IP du conteneur dans zabbix_monitored_hosts).
+- name: Réconcilier l'adresse IP de l'interface agent des hôtes existants
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: hostinterface.update
+      params:
+        interfaceid: >-
+          {{ (zabbix_existing_hosts_by_name[item.name].interfaces
+              | selectattr('type', 'equalto', '1') | selectattr('main', 'equalto', '1')
+              | map(attribute='interfaceid') | list | first) }}
+        ip: "{{ item.ip }}"
+      id: 8
+    status_code: 200
+  register: zabbix_api_iface_update
+  failed_when: zabbix_api_iface_update.json.result is not defined
+  changed_when: true
+  no_log: true
+  loop: "{{ zabbix_monitored_hosts }}"
+  when:
+    - item.name in zabbix_existing_host_names
+    - zabbix_existing_hosts_by_name[item.name].interfaces
+      | selectattr('type', 'equalto', '1') | selectattr('main', 'equalto', '1')
+      | selectattr('ip', 'equalto', item.ip) | list | length == 0
+    - zabbix_existing_hosts_by_name[item.name].interfaces
+      | selectattr('type', 'equalto', '1') | selectattr('main', 'equalto', '1')
+      | list | length > 0
+
+# ─── Compte de service Grafana (lecture seule, moindre privilège) ───
+# Grafana interroge l'API Zabbix avec ce compte dédié au lieu du super-admin
+# « Admin ». Il s'appuie sur le rôle natif « User role » (lecture seule) et un
+# groupe d'utilisateurs n'ayant qu'un accès en lecture au groupe d'hôtes Atlas.
+
+- name: Récupérer le rôle natif « User role » (lecture seule)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: role.get
+      params:
+        filter:
+          name:
+            - "User role"
+      id: 9
+    status_code: 200
+  register: zabbix_api_role_get
+  failed_when: zabbix_api_role_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Vérifier la présence du rôle « User role »
+  ansible.builtin.assert:
+    that:
+      - zabbix_api_role_get.json.result | length > 0
+    fail_msg: >-
+      Le rôle natif « User role » est introuvable : impossible de créer le
+      compte Grafana en lecture seule.
+    quiet: true
+
+- name: Rechercher le groupe d'utilisateurs Grafana (lecture seule)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: usergroup.get
+      params:
+        filter:
+          name:
+            - "{{ zabbix_grafana_usergroup }}"
+      id: 10
+    status_code: 200
+  register: zabbix_api_usergroup_get
+  failed_when: zabbix_api_usergroup_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Créer le groupe d'utilisateurs Grafana (lecture seule sur Atlas)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: usergroup.create
+      params:
+        name: "{{ zabbix_grafana_usergroup }}"
+        # 2 = lecture seule sur le groupe d'hôtes Atlas
+        hostgroup_rights:
+          - id: "{{ zabbix_atlas_groupid }}"
+            permission: 2
+      id: 11
+    status_code: 200
+  register: zabbix_api_usergroup_create
+  failed_when: zabbix_api_usergroup_create.json.result is not defined
+  changed_when: true
+  no_log: true
+  when: zabbix_api_usergroup_get.json.result | length == 0
+
+- name: Mémoriser l'identifiant du groupe d'utilisateurs Grafana
+  ansible.builtin.set_fact:
+    zabbix_grafana_usrgrpid: >-
+      {{ zabbix_api_usergroup_get.json.result[0].usrgrpid
+         if zabbix_api_usergroup_get.json.result | length > 0
+         else zabbix_api_usergroup_create.json.result.usrgrpids[0] }}
+
+- name: Rechercher le compte de service Grafana
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: user.get
+      params:
+        filter:
+          username:
+            - "{{ zabbix_grafana_username }}"
+      id: 12
+    status_code: 200
+  register: zabbix_api_grafana_user_get
+  failed_when: zabbix_api_grafana_user_get.json.result is not defined
+  changed_when: false
+  no_log: true
+
+- name: Créer le compte de service Grafana (lecture seule)
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: user.create
+      params:
+        username: "{{ zabbix_grafana_username }}"
+        passwd: "{{ vault_zabbix_grafana_password }}"
+        roleid: "{{ zabbix_api_role_get.json.result[0].roleid }}"
+        usrgrps:
+          - usrgrpid: "{{ zabbix_grafana_usrgrpid }}"
+      id: 13
+    status_code: 200
+  register: zabbix_api_grafana_user_create
+  failed_when: zabbix_api_grafana_user_create.json.result is not defined
+  changed_when: true
+  no_log: true
+  when: zabbix_api_grafana_user_get.json.result | length == 0
+
+# Convergence du mot de passe : si le compte existe déjà, on réaligne son mot
+# de passe sur le vault (rotation), comme pour le compte Admin et la BDD.
+- name: Converger le mot de passe du compte de service Grafana
+  ansible.builtin.uri:
+    url: "{{ zabbix_api_url }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ zabbix_api_login.json.result }}"
+    body_format: json
+    body:
+      jsonrpc: "2.0"
+      method: user.update
+      params:
+        userid: "{{ zabbix_api_grafana_user_get.json.result[0].userid }}"
+        passwd: "{{ vault_zabbix_grafana_password }}"
+      id: 14
+    status_code: 200
+  register: zabbix_api_grafana_user_update
+  failed_when: zabbix_api_grafana_user_update.json.result is not defined
+  changed_when: false
+  no_log: true
+  when: zabbix_api_grafana_user_get.json.result | length > 0
+
 # ─── Fermeture de session ───
 
 - name: Fermer la session API Zabbix
@@ -188,7 +422,7 @@
       jsonrpc: "2.0"
       method: user.logout
       params: []
-      id: 7
+      id: 15
     status_code: 200
   changed_when: false
   failed_when: false

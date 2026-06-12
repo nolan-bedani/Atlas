@@ -163,6 +163,9 @@ ajoute_regle() {
   fi
 }
 
+# ─── Trafic retour (connexions établies) autorisé globalement ───
+ajoute_regle filter FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+
 for entry in "${VLANS[@]}"; do
   vid="${entry%%:*}"
   subnet="${entry##*:}"
@@ -178,15 +181,31 @@ for entry in "${VLANS[@]}"; do
     -m state --state RELATED,ESTABLISHED -j ACCEPT
 done
 
-# ─── Routage inter-VLAN (DMZ ↔ LAN ADMIN ↔ MGMT) ───
-for src_entry in "${VLANS[@]}"; do
-  for dst_entry in "${VLANS[@]}"; do
-    [ "${src_entry}" = "${dst_entry}" ] && continue
-    src_subnet="${src_entry##*:}"
-    dst_subnet="${dst_entry##*:}"
-    ajoute_regle filter FORWARD -s "${src_subnet}" -d "${dst_subnet}" -j ACCEPT
-  done
+# ─── Routage inter-VLAN : matrice de flux explicite (moindre privilège) ───
+# ⚠️  Source de vérité = rôle Ansible proxmox_network (templates/rules.v4.j2).
+# Garder cette matrice ALIGNÉE sur proxmox_network_interzone_rules.
+# Format : "src_subnet:dst:proto:port:commentaire"
+INTERZONE=(
+  "10.20.0.0/24:10.30.0.10:tcp:3306:DMZ -> MariaDB (GLPI)"
+  "10.20.0.0/24:10.30.0.11:tcp:25:DMZ -> relais SMTP"
+  "10.20.0.0/24:10.30.0.12:tcp:10051:Agents DMZ -> Zabbix (checks actifs)"
+  "10.30.0.12:10.20.0.0/24:tcp:10050:Zabbix -> agents DMZ (checks passifs)"
+  "10.90.0.0/24:10.20.0.0/24:tcp:22:MGMT -> DMZ SSH"
+  "10.90.0.0/24:10.30.0.0/24:tcp:22:MGMT -> LAN ADMIN SSH"
+)
+for rule in "${INTERZONE[@]}"; do
+  IFS=':' read -r r_src r_dst r_proto r_port _ <<< "${rule}"
+  ajoute_regle filter FORWARD -s "${r_src}" -d "${r_dst}" -p "${r_proto}" --dport "${r_port}" -j ACCEPT
 done
+
+# ─── Politique par défaut : transit refusé (segmentation réelle des VLAN) ───
+# INPUT reste ACCEPT pour ne pas verrouiller l'accès SSH à l'hyperviseur distant.
+if [ "$(iptables -nL FORWARD | head -1)" != "Chain FORWARD (policy DROP)" ]; then
+  iptables -P FORWARD DROP
+  log "Politique FORWARD par défaut : DROP (transit inter-VLAN non autorisé refusé)."
+else
+  log "Politique FORWARD déjà en DROP."
+fi
 
 # ══════════════════════════════════════════════
 # Étape 6 — Persistance des règles iptables
@@ -201,9 +220,19 @@ else
   DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
 fi
 
-mkdir -p /etc/iptables
-iptables-save > "${IPTABLES_RULES}"
-log "Règles iptables sauvegardées dans ${IPTABLES_RULES}."
+# ⚠️  iptables-save capture l'ÉTAT VIVANT COMPLET (règles temporaires, PVE firewall,
+# doublons d'anciens runs). Si le rôle Ansible proxmox_network gère déjà rules.v4
+# (templates/rules.v4.j2, source de vérité), ce dump brut le fait DÉRIVER de manière
+# non déterministe selon l'ordre script/rôle. Ne persister ici qu'en mode autonome
+# (hôte non géré par Ansible) : PERSIST_IPTABLES=0 désactive l'écrasement.
+PERSIST_IPTABLES="${PERSIST_IPTABLES:-1}"
+if [ "${PERSIST_IPTABLES}" -eq 1 ]; then
+  mkdir -p /etc/iptables
+  iptables-save > "${IPTABLES_RULES}"
+  log "Règles iptables sauvegardées dans ${IPTABLES_RULES} (état vivant)."
+else
+  log "Persistance iptables ignorée (PERSIST_IPTABLES=0) — ${IPTABLES_RULES} géré par Ansible (rules.v4.j2)."
+fi
 
 # ══════════════════════════════════════════════
 # Étape 7 — Résumé final

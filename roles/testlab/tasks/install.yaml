@@ -37,9 +37,13 @@
 
 # ─── Pare-feu UFW : accès HTTP pour la supervision ───
 
-- name: Autoriser HTTP (80/tcp) depuis le réseau interne 10.0.0.0/8
+# Restreint aux VLAN Atlas (moindre privilège) au lieu de tout 10.0.0.0/8.
+# La supervision provient du LAN ADMIN (Zabbix, VLAN 30) ; MGMT (VLAN 90)
+# conservé pour l'administration depuis le bastion.
+- name: Autoriser HTTP (80/tcp) depuis les sous-réseaux Atlas
   community.general.ufw:
     rule: allow
     port: "80"
     proto: tcp
-    from_ip: 10.0.0.0/8
+    from_ip: "{{ item }}"
+  loop: "{{ testlab_http_allowed_subnets }}"

@@ -16,14 +16,29 @@ set -euo pipefail
 # ─── Constantes ───
 LOG_FILE="/var/log/atlas/chaos.log"
 DISK_FILE="/var/tmp/chaos_disk_fill"
+# Hôte de lab attendu : garde-fou de ciblage (cf. plus bas).
+EXPECTED_HOST="{{ testlab_expected_host }}"
+
+# ─── Garde-fou de ciblage ───
+# Ce script arrête nginx et remplit le disque : il ne doit JAMAIS s'exécuter
+# ailleurs que sur l'hôte de lab. Sans ce garde-fou, une erreur d'inventaire
+# (hosts trop large, --limit erroné) déclencherait des pannes réelles sur le
+# reverse proxy (atlrp01p) ou le frontend Zabbix (atlzbx01p).
+if [[ "$(hostname -s)" != "${EXPECTED_HOST}" ]]; then
+    echo "REFUS : chaos.sh ne doit s'exécuter que sur ${EXPECTED_HOST} (hôte courant : $(hostname -s))" >&2
+    exit 1
+fi
 
 # ─── Journalisation horodatée (console + fichier) ───
+# La journalisation est tolérante : un échec d'écriture du fichier (ex.
+# /var/log/atlas absent) ne doit jamais interrompre une réparation. On
+# neutralise l'échec du pipeline (sinon « set -o pipefail » quitterait avant
+# la capture de PIPESTATUS) puis on émet un avertissement sur stderr.
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
-    # Piège set -u : on capture PIPESTATUS d'un bloc, sinon il est perdu
-    RC=("${PIPESTATUS[@]}")
-    if [[ "${RC[0]}" -ne 0 || "${RC[1]}" -ne 0 ]]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVERTISSEMENT : écriture du journal en échec (rc=${RC[*]})" >&2
+    local rc=0
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}" || rc=$?
+    if [[ "${rc}" -ne 0 ]]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVERTISSEMENT : écriture du journal en échec (rc=${rc})" >&2
     fi
 }
 

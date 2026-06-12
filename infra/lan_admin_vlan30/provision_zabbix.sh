@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ⚠️  OBSOLÈTE — doublon des rôles Ansible `zabbix` + `mariadb` (source de vérité).
+# Cible le conteneur divergent CT 103 (cf. infra/proxmox_iac/deploy_lxc.sh).
+# Pour forcer :  ATLAS_PROVISION_FORCE=1 bash provision_zabbix.sh
+if [ "${ATLAS_PROVISION_FORCE:-0}" != "1" ]; then
+  echo "[ABORT] Obsolète : utiliser les rôles Ansible 'zabbix' et 'mariadb'." >&2
+  echo "        Forcer malgré le conflit : ATLAS_PROVISION_FORCE=1 bash $0" >&2
+  exit 2
+fi
 # =============================================================================
 # provision_zabbix.sh
 #
@@ -78,6 +86,15 @@ ZABBIX_DB_NAME="${ZABBIX_DB_NAME:?'[ERROR] ZABBIX_DB_NAME is not set. Export it 
 ZABBIX_DB_USER="${ZABBIX_DB_USER:?'[ERROR] ZABBIX_DB_USER is not set. Export it before running this script.'}"
 ZABBIX_DB_PASSWORD="${ZABBIX_DB_PASSWORD:?'[ERROR] ZABBIX_DB_PASSWORD is not set. Export it before running this script.'}"
 
+# ---------------------------------------------------------------------------
+# Frontend "Admin" password — CLAUDE.md : aucun compte admin par défaut conservé.
+# If provided, the default Zabbix web admin password ("zabbix") is forcibly
+# replaced just after the schema import (no manual UI step required). Leave it
+# unset only for a throwaway lab; the default credential MUST NOT survive in a
+# real deployment. Export e.g. with `read -sr ZABBIX_WEB_ADMIN_PASSWORD`.
+# ---------------------------------------------------------------------------
+ZABBIX_WEB_ADMIN_PASSWORD="${ZABBIX_WEB_ADMIN_PASSWORD:-}"
+
 # =============================================================================
 # PREREQUISITE CHECKS
 # =============================================================================
@@ -142,49 +159,140 @@ echo "[OK]   MariaDB is enabled and running."
 # The Zabbix DB user is granted privileges only on the Zabbix database
 # (principle of least privilege — no SUPER, no GRANT OPTION).
 #
-# NOTE: The schema import below is idempotent only on a FRESH (empty) database.
-#       Do NOT re-run this step against an already-populated Zabbix database —
-#       it will fail with duplicate-object errors. If you need to re-provision,
-#       drop and recreate the database first.
+# Secret handling: the DB password is NEVER passed on a mysql command line
+# (it would be visible in `ps`/`/proc/<pid>/cmdline` on the host and inside
+# the container). It is written once to a temporary option file (chmod 0600)
+# inside the container, consumed via --defaults-extra-file, then deleted.
+# The CREATE USER statement is fed through a heredoc on stdin, not argv.
+#
+# Idempotence: the schema import is guarded by a table-count test so a re-run
+# (e.g. after a failure at a later step) skips the import on an already
+# populated database instead of aborting on duplicate-object errors.
 # =============================================================================
+# Validate identifiers so they cannot break out of the backtick-quoted names,
+# then build the SQL in this outer shell (single quotes of the password doubled)
+# and feed it to `mysql -u root` on stdin — the secret is never on any argv.
+if ! [[ "${ZABBIX_DB_NAME}" =~ ^[A-Za-z0-9_]+$ ]]; then
+    echo "[ERROR] ZABBIX_DB_NAME contient des caractères non autorisés (attendu : [A-Za-z0-9_])." >&2
+    exit 1
+fi
+if ! [[ "${ZABBIX_DB_USER}" =~ ^[A-Za-z0-9_]+$ ]]; then
+    echo "[ERROR] ZABBIX_DB_USER contient des caractères non autorisés (attendu : [A-Za-z0-9_])." >&2
+    exit 1
+fi
+SQ="'"
+ZABBIX_DB_PASSWORD_SQL="${ZABBIX_DB_PASSWORD//${SQ}/${SQ}${SQ}}"
+
 echo "[INFO] Step 4/7 — Creating database '${ZABBIX_DB_NAME}' and user '${ZABBIX_DB_USER}' ..."
-pct exec "${CTID}" -- bash -c "
-    mysql -u root <<SQL
-CREATE DATABASE IF NOT EXISTS ${ZABBIX_DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE USER IF NOT EXISTS '${ZABBIX_DB_USER}'@'localhost' IDENTIFIED BY '${ZABBIX_DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON ${ZABBIX_DB_NAME}.* TO '${ZABBIX_DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-SQL
-"
+printf '%s\n' \
+"CREATE DATABASE IF NOT EXISTS \`${ZABBIX_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;" \
+"CREATE USER IF NOT EXISTS '${ZABBIX_DB_USER}'@'localhost' IDENTIFIED BY '${ZABBIX_DB_PASSWORD_SQL}';" \
+"GRANT ALL PRIVILEGES ON \`${ZABBIX_DB_NAME}\`.* TO '${ZABBIX_DB_USER}'@'localhost';" \
+"FLUSH PRIVILEGES;" \
+    | pct exec "${CTID}" -- mysql -u root
 echo "[OK]   Database '${ZABBIX_DB_NAME}' and user '${ZABBIX_DB_USER}'@'localhost' created."
 
-echo "[INFO]           Importing initial Zabbix schema into '${ZABBIX_DB_NAME}' ..."
-pct exec "${CTID}" -- bash -c \
-    "zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | mysql -u${ZABBIX_DB_USER} -p${ZABBIX_DB_PASSWORD} ${ZABBIX_DB_NAME}"
-echo "[OK]   Zabbix initial schema imported successfully."
+# Write a temporary 0600 client option file inside the container so the Zabbix
+# DB password never appears in any process argument list. Credentials are
+# passed to the inner shell via the environment (env), not via argv, and the
+# option file is removed in all cases through a trap.
+echo "[INFO]           Writing temporary MySQL option file (chmod 0600) ..."
+pct exec "${CTID}" -- \
+    env ZBX_DB_USER="${ZABBIX_DB_USER}" \
+        ZBX_DB_PASS="${ZABBIX_DB_PASSWORD}" \
+        ZBX_DB_NAME="${ZABBIX_DB_NAME}" \
+    bash -c '
+    set -euo pipefail
+    OPT_FILE="$(mktemp /root/.zbx-my.XXXXXX.cnf)"
+    trap "rm -f \"${OPT_FILE}\"" EXIT
+    chmod 600 "${OPT_FILE}"
+    {
+        printf "[client]\n"
+        printf "user=%s\n"     "${ZBX_DB_USER}"
+        printf "password=%s\n" "${ZBX_DB_PASS}"
+    } > "${OPT_FILE}"
+
+    # Import only if the schema is absent (0 table) — keeps the step replayable.
+    TABLE_COUNT="$(mysql --defaults-extra-file="${OPT_FILE}" -N -B -e \
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE();" \
+        "${ZBX_DB_NAME}")"
+    if [ "${TABLE_COUNT}" -eq 0 ]; then
+        echo "[INFO]           Importing initial Zabbix schema into ${ZBX_DB_NAME} ..."
+        zcat /usr/share/zabbix/sql-scripts/mysql/server.sql.gz | \
+            mysql --defaults-extra-file="${OPT_FILE}" "${ZBX_DB_NAME}"
+        echo "[OK]   Zabbix initial schema imported successfully."
+    else
+        echo "[OK]   Zabbix schema already present (${TABLE_COUNT} tables) — import skipped."
+    fi
+'
 
 # =============================================================================
 # STEP 5 — Configure /etc/zabbix/zabbix_server.conf
 #
-# Targeted sed substitutions are used so that upstream config comments and all
-# other directives are preserved exactly as shipped.  Each pattern matches both
-# commented-out (e.g. "# DBHost=") and active lines, replacing with the live
-# value.
+# The sed patterns are strictly anchored to the start of line and only tolerate
+# leading '#'/whitespace before the directive name, immediately followed by '='
+# (e.g. "DBHost=" or "# DBHost="). This avoids matching unrelated comment lines
+# such as "### Option: DBHost" and prevents writing the same directive several
+# times (which Zabbix would reject as "defined multiple times").
+#
+# The DBPassword value is injected via an environment variable consumed inside
+# the container so the secret is not visible in the host-side argv of pct exec.
 # =============================================================================
 echo "[INFO] Step 5/7 — Configuring /etc/zabbix/zabbix_server.conf ..."
-pct exec "${CTID}" -- sed -i \
-    "s|^.*DBHost=.*|DBHost=localhost|" \
+pct exec "${CTID}" -- sed -i -E \
+    "s|^[#[:space:]]*DBHost=.*|DBHost=localhost|" \
     /etc/zabbix/zabbix_server.conf
-pct exec "${CTID}" -- sed -i \
-    "s|^.*DBName=.*|DBName=${ZABBIX_DB_NAME}|" \
+pct exec "${CTID}" -- sed -i -E \
+    "s|^[#[:space:]]*DBName=.*|DBName=${ZABBIX_DB_NAME}|" \
     /etc/zabbix/zabbix_server.conf
-pct exec "${CTID}" -- sed -i \
-    "s|^.*DBUser=.*|DBUser=${ZABBIX_DB_USER}|" \
+pct exec "${CTID}" -- sed -i -E \
+    "s|^[#[:space:]]*DBUser=.*|DBUser=${ZABBIX_DB_USER}|" \
     /etc/zabbix/zabbix_server.conf
-pct exec "${CTID}" -- sed -i \
-    "s|^.*DBPassword=.*|DBPassword=${ZABBIX_DB_PASSWORD}|" \
-    /etc/zabbix/zabbix_server.conf
+pct exec "${CTID}" -- env ZBX_DB_PASS="${ZABBIX_DB_PASSWORD}" bash -c \
+    'sed -i -E "s|^[#[:space:]]*DBPassword=.*|DBPassword=${ZBX_DB_PASS}|" /etc/zabbix/zabbix_server.conf'
 echo "[OK]   zabbix_server.conf updated (DBHost, DBName, DBUser, DBPassword)."
+
+# =============================================================================
+# STEP 5b — Force-change the default frontend "Admin" password
+#
+# CLAUDE.md : « Aucun compte administrateur par défaut ne doit être conservé. »
+# Zabbix ships the super-admin "Admin" with the well-known password "zabbix".
+# When ZABBIX_WEB_ADMIN_PASSWORD is provided, replace it immediately via SQL so
+# the default credential never survives provisioning (no manual UI step).
+#
+# Zabbix 7.0 stores the password as a bcrypt hash in users.passwd; we generate
+# it inside the container with PHP (password_hash, available with the frontend
+# packages installed at Step 2). The secret is passed via the environment and a
+# 0600 option file, never on argv.
+# =============================================================================
+if [ -n "${ZABBIX_WEB_ADMIN_PASSWORD}" ]; then
+    echo "[INFO] Step 5b — Forcing the default Zabbix 'Admin' password change ..."
+    pct exec "${CTID}" -- \
+        env ZBX_DB_USER="${ZABBIX_DB_USER}" \
+            ZBX_DB_PASS="${ZABBIX_DB_PASSWORD}" \
+            ZBX_DB_NAME="${ZABBIX_DB_NAME}" \
+            ZBX_WEB_PASS="${ZABBIX_WEB_ADMIN_PASSWORD}" \
+        bash -c '
+        set -euo pipefail
+        OPT_FILE="$(mktemp /root/.zbx-my.XXXXXX.cnf)"
+        trap "rm -f \"${OPT_FILE}\"" EXIT
+        chmod 600 "${OPT_FILE}"
+        {
+            printf "[client]\n"
+            printf "user=%s\n"     "${ZBX_DB_USER}"
+            printf "password=%s\n" "${ZBX_DB_PASS}"
+        } > "${OPT_FILE}"
+        # bcrypt hash generated by PHP, fed to mysql on stdin (never on argv).
+        # A bcrypt hash only contains [./A-Za-z0-9$] — safe to inline in SQL.
+        HASH="$(php -r "echo password_hash(getenv(\"ZBX_WEB_PASS\"), PASSWORD_BCRYPT);")"
+        printf "UPDATE users SET passwd='"'"'%s'"'"' WHERE username='"'"'Admin'"'"';\n" "${HASH}" \
+            | mysql --defaults-extra-file="${OPT_FILE}" "${ZBX_DB_NAME}"
+    '
+    echo "[OK]   Default 'Admin' password replaced (value taken from ZABBIX_WEB_ADMIN_PASSWORD)."
+else
+    echo "[WARN] ZABBIX_WEB_ADMIN_PASSWORD not set — the default 'Admin' / 'zabbix' credential" >&2
+    echo "       is still active. Set it and re-run, or change it on first login (see NEXT STEPS)." >&2
+fi
 
 # =============================================================================
 # STEP 6 — Configure PHP timezone for the Zabbix frontend
@@ -221,7 +329,11 @@ printf " %-24s : %s\n" "DB engine"         "${DB_ENGINE}"
 printf " %-24s : %s\n" "Database name"     "${ZABBIX_DB_NAME}"
 printf " %-24s : %s\n" "Database user"     "${ZABBIX_DB_USER}"
 printf " %-24s : %s\n" "Web UI URL"        "http://${CT_IP}/zabbix"
-printf " %-24s : %s\n" "Default web creds" "Admin / zabbix — CHANGE IMMEDIATELY after first login"
+if [ -n "${ZABBIX_WEB_ADMIN_PASSWORD}" ]; then
+    printf " %-24s : %s\n" "Web admin creds" "Admin / (changed via ZABBIX_WEB_ADMIN_PASSWORD)"
+else
+    printf " %-24s : %s\n" "Web admin creds" "Admin / zabbix — DEFAULT STILL ACTIVE, change it NOW (see step 2)"
+fi
 echo "============================================================"
 echo " NEXT STEPS:"
 echo ""
@@ -233,9 +345,13 @@ echo "       DB name : ${ZABBIX_DB_NAME}"
 echo "       DB user : ${ZABBIX_DB_USER}"
 echo "     (DB password was set during provisioning — enter it in the form.)"
 echo ""
-echo "  2. After the installer completes and you log in with 'Admin / zabbix',"
-echo "     change the Admin password IMMEDIATELY:"
-echo "       Administration → Users → Admin → Change password"
+echo "  2. Default super-admin 'Admin' (CLAUDE.md: no default admin account kept):"
+echo "       - Preferred: export ZABBIX_WEB_ADMIN_PASSWORD before running this"
+echo "         script (it is then changed automatically in Step 5b), or rely on"
+echo "         the Ansible 'zabbix' role which sets it from vault_zabbix_admin_password."
+echo "       - If neither was done, the default 'Admin' / 'zabbix' is STILL ACTIVE:"
+echo "         log in and change it IMMEDIATELY via Administration → Users → Admin,"
+echo "         and disable the 'guest' user."
 echo ""
 echo "  3. Add Zabbix Agent monitoring for existing containers:"
 echo "       CT 101 — nginx-proxy  (10.20.0.101)"

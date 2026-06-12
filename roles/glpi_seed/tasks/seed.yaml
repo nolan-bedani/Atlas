@@ -25,15 +25,27 @@
 
 # ─── Exécution run-once : le marqueur empêche tout re-remplissage ───
 
+# no_log protège le jeton (passé via environment) ; le bloc rescue journalise
+# malgré tout un message générique et le code retour pour permettre le diagnostic
+# en cas d'échec du script (API down, jeton invalide) sans exposer le secret.
 - name: Exécuter le remplissage GLPI (run-once)
-  ansible.builtin.command: python3 /opt/atlas/scripts/seed_glpi.py
-  args:
-    creates: /var/lib/glpi/.atlas_seed_done
-  environment:
-    GLPI_API_URL: "{{ glpi_seed_api_url }}"
-    GLPI_USER_TOKEN: "{{ vault_glpi_api_token }}"
-  register: glpi_seed_result
-  no_log: true
+  block:
+    - name: Lancer le script de remplissage GLPI
+      ansible.builtin.command: python3 /opt/atlas/scripts/seed_glpi.py
+      args:
+        creates: /var/lib/glpi/.atlas_seed_done
+      environment:
+        GLPI_API_URL: "{{ glpi_seed_api_url }}"
+        GLPI_USER_TOKEN: "{{ vault_glpi_api_token }}"
+      register: glpi_seed_result
+      no_log: true
+  rescue:
+    - name: Signaler l'échec du remplissage GLPI (sans exposer le jeton)
+      ansible.builtin.fail:
+        msg: >-
+          Le remplissage GLPI a échoué (code retour
+          {{ glpi_seed_result.rc | default('inconnu') }}). Vérifier l'API GLPI et
+          le jeton, puis relancer (le marqueur run-once n'est pas posé en cas d'échec).
 
 # ─── Mode debug ───
 
