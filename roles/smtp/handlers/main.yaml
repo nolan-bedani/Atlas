@@ -3,10 +3,13 @@
 # Rôle : smtp — gestionnaires (handlers)
 # ══════════════════════════════════════════════
 
-- name: Recharger postfix
+# Restart (et non reload) : un changement d'inet_interfaces dans main.cf n'est
+# pris en compte qu'au redémarrage — un reload ne re-bind pas les sockets
+# d'écoute (le relais n'écouterait alors pas sur l'IP LAN attendue).
+- name: Redémarrer postfix
   ansible.builtin.service:
     name: postfix
-    state: reloaded
+    state: restarted
 
 - name: Reconstruire les alias
   ansible.builtin.command: newaliases

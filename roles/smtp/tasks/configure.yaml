@@ -11,7 +11,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Recharger postfix
+  notify: Redémarrer postfix
 
 # ─── Alias de messagerie ───
 - name: Rediriger les courriels de root vers atlsvc
