@@ -41,6 +41,7 @@ proxmox_network_interzone_rules:
   - { src: "10.30.0.12/32", dst: "10.20.0.0/24", proto: tcp, ports: [10050], comment: "Zabbix → agents DMZ (checks passifs)" }
   - { src: "10.30.0.12/32", dst: "10.90.0.10/32", proto: tcp, ports: [10050], comment: "Zabbix → agent bastion MGMT (checks passifs)" }
   - { src: "10.90.0.10/32", dst: "10.30.0.12/32", proto: tcp, ports: [10051], comment: "Agent bastion MGMT → Zabbix (checks actifs)" }
+  - { src: "10.30.0.13/32", dst: "10.20.0.11/32", proto: tcp, ports: [22],    comment: "Backup → GLPI (restauration du filestore PRA, rsync/ssh)" }
   - { src: "10.90.0.0/24", dst: "10.20.0.0/24", proto: tcp, ports: [22],     comment: "MGMT (bastion) → DMZ SSH" }
   - { src: "10.90.0.0/24", dst: "10.30.0.0/24", proto: tcp, ports: [22],     comment: "MGMT (bastion) → LAN ADMIN SSH" }
 
