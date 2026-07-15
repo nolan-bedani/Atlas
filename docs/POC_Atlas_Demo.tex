@@ -1,0 +1,344 @@
+% ============================================================================
+%  Atlas - SCRIPT DE DEMONSTRATION du POC (a derouler devant un jury)
+%  Compilation : pdflatex POC_Atlas_Demo.tex  (2 passes pour la TOC)
+%  But : la sequence EXACTE de commandes, dans l'ordre, pour MONTRER le POC.
+%  Chaque acte = une commande a lancer + ce que le public doit voir.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{underscore}
+\usepackage[hidelinks,colorlinks=true,linkcolor=atlasblue,urlcolor=atlasblue]{hyperref}
+
+\definecolor{atlasblue}{HTML}{1F6FEB}
+\definecolor{atlasdark}{HTML}{0D1B2A}
+\definecolor{atlasgray}{HTML}{F2F4F8}
+\definecolor{atlasgreen}{HTML}{2EA043}
+\definecolor{atlasred}{HTML}{CF222E}
+\definecolor{atlasamber}{HTML}{9A6700}
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{codecom}{HTML}{6E7781}
+\definecolor{codestr}{HTML}{0A3069}
+
+\titleformat{\section}{\Large\bfseries\color{atlasblue}}{}{0em}{}
+\titlespacing*{\section}{0pt}{2.4ex plus 1ex minus .2ex}{1.2ex}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{atlasdark}\textbf{Atlas} — Script de démonstration}
+\rhead{\small\color{codecom}\thepage}
+\rfoot{\small\color{codecom}Support de présentation — POC}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=leftline, framerule=2.5pt, rulecolor=\color{atlasblue},
+  keywordstyle=\color{atlasblue}\bfseries,
+  commentstyle=\color{codecom}\itshape,
+  stringstyle=\color{codestr},
+  showstringspaces=false, breaklines=true, breakatwhitespace=true,
+  columns=fullflexible, keepspaces=true, xleftmargin=1em,
+  aboveskip=0.8em, belowskip=0.8em, inputencoding=utf8, extendedchars=true,
+  literate=%
+    {é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {ë}{{\"e}}1
+    {à}{{\`a}}1 {â}{{\^a}}1 {ä}{{\"a}}1
+    {î}{{\^i}}1 {ï}{{\"i}}1 {ô}{{\^o}}1 {ö}{{\"o}}1
+    {û}{{\^u}}1 {ù}{{\`u}}1 {ü}{{\"u}}1 {ç}{{\c c}}1
+    {É}{{\'E}}1 {È}{{\`E}}1 {À}{{\`A}}1
+    {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1
+    {→}{{$\rightarrow$}}1 {≤}{{$\leq$}}1
+}
+\lstdefinestyle{bash}{language=bash,morekeywords={ansible,ansible-playbook,ssh,pct,mysql}}
+
+% Boite "ce qu'on montre / ce que le jury voit"
+\newtcolorbox{montrer}{enhanced,breakable,colback=atlasgreen!7,colframe=atlasgreen,
+  fonttitle=\bfseries,title=\faEyeText\ À l'écran — ce que le public voit,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+% Boite "phrase a dire"
+\newtcolorbox{dire}{enhanced,breakable,colback=atlasblue!6,colframe=atlasblue,
+  fonttitle=\bfseries,title=Ce qu'on dit,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{attention}{enhanced,breakable,colback=atlasred!6,colframe=atlasred,
+  fonttitle=\bfseries,title=Attention,left=2mm,right=2mm,top=1mm,bottom=1mm}
+% Bandeau d'acte : \acte{titre}{duree}
+\newcommand{\acte}[2]{%
+  \begin{tcolorbox}[enhanced,colback=atlasdark,colframe=atlasdark,coltext=white,
+    sharp corners,boxrule=0pt,left=3mm,right=3mm,top=2mm,bottom=2mm,
+    before skip=10pt,after skip=6pt]%
+    {\bfseries\large #1}\dur{#2}%
+  \end{tcolorbox}}
+
+\newcommand{\faEyeText}{\raisebox{-1pt}{$\odot$}}
+\newcommand{\cmd}[1]{{\ttfamily #1}}
+\newcommand{\dur}[1]{\hfill{\small\color{codecom}\itshape (#1)}}
+
+\begin{document}
+
+% ===================== TITRE =====================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\color{atlasblue}\rule{\linewidth}{2pt}}\\[0.6cm]
+{\Huge\bfseries\color{atlasdark} Projet Atlas}\\[0.3cm]
+{\LARGE Script de démonstration du POC}\\[0.2cm]
+{\large\color{codecom} La séquence exacte de commandes, dans l'ordre, pour présenter}\\[0.4cm]
+{\color{atlasblue}\rule{\linewidth}{2pt}}\\[1.2cm]
+
+\begin{tcolorbox}[width=0.9\linewidth,colback=atlasgray,colframe=atlasdark,sharp corners]
+\centering\small
+\textbf{Fil rouge de la démo} : \\[3pt]
+\textbf{1.} Ça tourne \; $\rightarrow$ \; \textbf{2.} C'est du code (IaC) \; $\rightarrow$ \;
+\textbf{3.} C'est supervisé \& résilient \\[2pt]
+$\rightarrow$ \; \textbf{4.} Les données sont protégées (RPO) \; $\rightarrow$ \;
+\textbf{5.} On survit au désastre (RTO)\\[6pt]
+\textbf{Durée cible} : 12–15 min \quad|\quad \textbf{Objectifs prouvés} : IaC, sécurité, supervision, RPO $\leq$ 20 min, RTO $\leq$ 40 min
+\end{tcolorbox}
+
+\vfill
+{\color{codecom}\small Support de présentation — à garder à côté de soi pendant la démo}\\
+{\color{codecom}\small Généré le \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ===================== PREPARATION =====================
+\section*{Avant de commencer (préparation, hors public)}
+\addcontentsline{toc}{section}{Avant de commencer}
+Ouvrir \textbf{à l'avance} 4 onglets/terminaux pour enchaîner sans temps mort :
+
+\begin{lstlisting}[style=bash]
+# Terminal A : sur le control node (hyperviseur), pour Ansible + pct
+ssh root@138.201.135.108
+
+# Terminaux B, C, D : les 3 tunnels (a laisser ouverts), sur son poste
+ssh -L 8443:10.20.0.10:443  root@138.201.135.108   # GLPI
+ssh -L 8080:10.30.0.12:8080 root@138.201.135.108   # Zabbix
+ssh -L 3000:10.30.0.14:3000 root@138.201.135.108   # Grafana
+\end{lstlisting}
+Puis ouvrir 3 onglets navigateur : \url{https://localhost:8443}, \url{http://localhost:8080},
+\url{http://localhost:3000}. \textbf{Ne pas encore les montrer.}
+
+\begin{attention}
+Vérifier 5 min avant : les 3 tunnels montent, Zabbix affiche 10 hôtes verts (état sain de
+départ), et la machine de lab est réparée (\cmd{chaos.sh clean} si un incident cron traîne).
+\end{attention}
+
+% ===================== ACTE 1 =====================
+\acte{ACTE 1 — « Ça tourne » : le service est vivant}{~3 min}
+
+\subsection*{1.1 — Toute l'infra est debout}
+\begin{lstlisting}[style=bash]
+# (Terminal A, sur le control node)
+ssh root@138.201.135.108 'pct list'
+\end{lstlisting}
+\begin{montrer}
+Les \textbf{9 conteneurs LXC} sont tous en statut \cmd{running} (bastion, reverse proxy,
+GLPI, MariaDB, SMTP, Zabbix, backup, Grafana, testlab).
+\end{montrer}
+\begin{dire}
+« Voici les 9 briques du POC, réparties sur 3 VLAN — DMZ, LAN-admin, management. Tout
+tourne. Regardons le service côté utilisateur. »
+\end{dire}
+
+\subsection*{1.2 — Le portail GLPI répond (chemin utilisateur, en HTTPS)}
+\begin{lstlisting}[style=bash]
+# Onglet navigateur GLPI (tunnel deja ouvert)
+https://localhost:8443
+\end{lstlisting}
+\begin{montrer}
+La page GLPI s'affiche en \textbf{HTTPS} (via le reverse proxy TLS). Se connecter, montrer
+la \textbf{liste des tickets} existants.
+\end{montrer}
+\begin{dire}
+« Le trafic utilisateur entre par le reverse proxy chiffré, qui sert GLPI — la base
+n'est jamais exposée directement. »
+\end{dire}
+
+\subsection*{1.3 — Tout est supervisé (Zabbix)}
+\begin{lstlisting}[style=bash]
+http://localhost:8080     # Monitoring -> Hosts
+\end{lstlisting}
+\begin{montrer}
+\textbf{10 hôtes en vert} (\cmd{Available}) et \emph{Monitoring $\rightarrow$ Problems}
+\textbf{vide}. C'est notre état de référence « tout va bien ».
+\end{montrer}
+
+\subsection*{1.4 — Les tableaux de bord (Grafana)}
+\begin{lstlisting}[style=bash]
+http://localhost:3000     # dashboard "Atlas - Vue d'ensemble"
+\end{lstlisting}
+\begin{montrer}
+Grafana remonte les métriques (via un compte Zabbix en \textbf{lecture seule}). On voit
+CPU/RAM/disque des hôtes en direct.
+\end{montrer}
+
+% ===================== ACTE 2 =====================
+\acte{ACTE 2 — « C'est du code » : Infrastructure as Code}{~2 min}
+
+\subsection*{2.1 — Rien n'est fait à la main : tout est reproductible}
+\begin{lstlisting}[style=bash]
+# (Terminal A) simulation : est-ce que le reel colle au code ?
+ansible-playbook site.yaml --check --diff --tags zabbix --limit atlzbx01p
+\end{lstlisting}
+\begin{montrer}
+Le playbook tourne en \textbf{mode simulation} et affiche \cmd{ok=…} \cmd{changed=0} :
+l'infrastructure réelle est \textbf{déjà conforme au code}. Aucune dérive.
+\end{montrer}
+\begin{dire}
+« Toute l'infra est décrite en Ansible. Je peux la rejouer à l'identique : ici la
+simulation ne propose aucun changement, preuve que le serveur EST son code. C'est ce qui
+garantit qu'on saura tout reconstruire à l'identique en cas de sinistre. »
+\end{dire}
+
+% ===================== ACTE 3 =====================
+\acte{ACTE 3 — « C'est résilient » : chaos en direct}{~3 min}
+
+\subsection*{3.1 — On casse volontairement un service}
+\begin{lstlisting}[style=bash]
+# (Terminal A) on arrete nginx sur la machine de lab
+ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh service"
+\end{lstlisting}
+\begin{montrer}
+La commande confirme « INCIDENT DÉCLENCHÉ : service (nginx arrêté) ».
+\end{montrer}
+\begin{dire}
+« Je provoque une panne réelle mais contrôlée. Maintenant, sans rien dire à Zabbix,
+retournons voir la supervision. »
+\end{dire}
+
+\subsection*{3.2 — Zabbix détecte la panne tout seul}
+\begin{lstlisting}[style=bash]
+http://localhost:8080     # Monitoring -> Problems (rafraichir)
+\end{lstlisting}
+\begin{montrer}
+Un \textbf{problème apparaît} sur \cmd{atltst01p} (service indisponible). La détection est
+automatique — on n'a rien configuré en direct.
+\end{montrer}
+
+\subsection*{3.3 — On répare, et l'alerte se résout}
+\begin{lstlisting}[style=bash]
+# (Terminal A)
+ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh clean"
+\end{lstlisting}
+\begin{montrer}
+Retour dans Zabbix : le problème passe en \textbf{Resolved}, l'hôte redevient vert. La
+boucle « je casse $\rightarrow$ ça alerte $\rightarrow$ je répare » est bouclée en direct.
+\end{montrer}
+\begin{attention}
+\cmd{chaos.sh} a un garde-fou : il refuse de s'exécuter ailleurs que sur la machine de lab.
+Aucun risque pour les vrais services pendant la démo.
+\end{attention}
+
+% ===================== ACTE 4 =====================
+\acte{ACTE 4 — « Les données sont protégées » : le RPO}{~2 min}
+
+\subsection*{4.1 — Sauvegarde toutes les 15 minutes}
+\begin{lstlisting}[style=bash]
+# (Terminal A) les derniers dumps sur la base
+ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'
+\end{lstlisting}
+\begin{montrer}
+Une série de dumps espacés de \textbf{15 minutes} (\cmd{glpi_dump_AAAAMMJJ_HHMMSS.sql.gz}),
+le plus récent daté de moins de 15 min $\rightarrow$ \textbf{RPO $\leq$ 15 min}
+(mieux que la cible de 20 min).
+\end{montrer}
+
+\subsection*{4.2 — Répliqué hors-site}
+\begin{lstlisting}[style=bash]
+ssh root@10.30.0.13 'ls -lht /var/backups/atlas/db-remote/ | head'
+\end{lstlisting}
+\begin{montrer}
+Le même dernier dump est présent sur le serveur de sauvegarde \textbf{distinct}
+(\cmd{atlbkp01p}) : la perte de la base n'emporte pas les sauvegardes.
+\end{montrer}
+
+% ===================== ACTE 5 =====================
+\acte{ACTE 5 — « On survit au désastre » : le PRA (RTO)}{~3–4 min}
+
+\subsection*{5.1 — Option courte à montrer en direct : restauration granulaire}
+\begin{lstlisting}[style=bash]
+# (Dans GLPI) supprimer un ticket de demonstration, puis :
+# (Terminal A) choisir un dump anterieur
+ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'
+
+# Relancer uniquement les tickets manquants (sans ecraser les autres)
+ansible-playbook pra_restore_granular.yaml \
+  -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_AAAAMMJJ_HHMMSS.sql.gz"
+\end{lstlisting}
+\begin{montrer}
+Le playbook restaure dans une base temporaire, réinjecte \emph{seulement} les tickets
+absents (\cmd{INSERT IGNORE}), affiche le nombre de tickets, et journalise le RPO effectif.
+Rafraîchir GLPI : \textbf{le ticket supprimé est revenu}, les autres sont intacts.
+\end{montrer}
+\begin{dire}
+« On peut réparer chirurgicalement une erreur humaine, sans toucher au reste. »
+\end{dire}
+
+\subsection*{5.2 — Option complète (à décrire, ou à lancer si le temps le permet) : perte de VM}
+\begin{lstlisting}[style=bash]
+ansible-playbook pra_restore_full.yaml
+\end{lstlisting}
+\begin{montrer}
+Reconstruction de toute la chaîne dans l'ordre (MariaDB $\rightarrow$ GLPI $\rightarrow$
+reverse proxy $\rightarrow$ supervision), restauration des données, vérifications
+automatiques (GLPI en HTTPS, comptage des tickets), et surtout : à la fin, le playbook
+\textbf{affiche le RTO mesuré} comparé à la cible de 40 min.
+\end{montrer}
+\begin{dire}
+« En une seule commande, tout se reconstruit et se vérifie tout seul, et le temps de reprise
+est mesuré : c'est ça, tenir le RTO. »
+\end{dire}
+
+% ===================== CLOTURE =====================
+\acte{Clôture — ce qu'on a prouvé}{~1 min}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+\textbf{Exigence} & \textbf{Démontré par} \\
+\midrule
+100\% IaC, reproductible   & Acte 2 — simulation « 0 changed », infra = code \\
+Sécurité (segmentation)    & Acte 1 — HTTPS via reverse proxy, base non exposée, 3 VLAN \\
+Supervision opérationnelle & Acte 3 — panne détectée puis résolue en direct \\
+RPO $\leq$ 20 min          & Acte 4 — dumps toutes les 15 min, répliqués hors-site \\
+RTO $\leq$ 40 min          & Acte 5 — restauration en une commande, RTO mesuré \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{center}
+{\color{atlasblue}\rule{0.5\linewidth}{1pt}}\\[4pt]
+{\small\color{codecom} Atlas — Script de démonstration du POC — Infrastructure as Code}
+\end{center}
+
+% ===================== AIDE-MEMOIRE 1 PAGE =====================
+\newpage
+\section*{Aide-mémoire — la démo en une page (à imprimer)}
+\addcontentsline{toc}{section}{Aide-mémoire (1 page)}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=4pt]
+  \item \textbf{Ça tourne} : \cmd{ssh root@138.201.135.108 'pct list'} $\rightarrow$ 9 running ;
+        puis les 3 onglets : GLPI (HTTPS), Zabbix (10 verts), Grafana.
+  \item \textbf{C'est du code} : \cmd{ansible-playbook site.yaml --check --diff --tags zabbix --limit atlzbx01p} $\rightarrow$ 0 changed.
+  \item \textbf{Chaos} : \cmd{ansible atltst01p -m command -a ".../chaos.sh service"} $\rightarrow$ Zabbix voit $\rightarrow$ \cmd{... chaos.sh clean} $\rightarrow$ résolu.
+  \item \textbf{RPO} : \cmd{ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'} + \cmd{ssh root@10.30.0.13 '... db-remote ...'}.
+  \item \textbf{RTO} : \cmd{ansible-playbook pra_restore_granular.yaml -e "pra_target_dump=..."} (ou \cmd{pra_restore_full.yaml}).
+\end{enumerate}
+
+\end{document}
