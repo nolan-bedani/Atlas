@@ -355,11 +355,12 @@ La machine de lab \cmd{atltst01p} embarque \cmd{chaos.sh} : un générateur d'in
 \end{etape}
 
 \begin{lstlisting}[style=bash]
-# 1) Provoquer un incident sur atltst01p (depuis le control node, en une ligne)
-ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh service"  # arret de nginx
-# variantes : cpu (saturation CPU) | disk (remplissage) | run (scenario aleatoire)
+# 1) Provoquer un incident sur atltst01p (depuis le control node)
+ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh disk"  # remplissage disque
+# variantes : cpu (saturation CPU) | service (arret nginx, NON supervise) | run (aleatoire)
 
-# 2) Observer : dans Zabbix (http://localhost:8080), un probleme apparait sur atltst01p
+# 2) Observer (~5 min apres) : Zabbix -> Problems affiche
+#    "FS [/]: Space is critically low" sur atltst01p (rouge, Haute severite)
 
 # 3) Reparer : retour a l'etat nominal
 ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh clean"
@@ -373,8 +374,10 @@ l'Étape 2) fonctionne réellement, et pas seulement sur le papier.
 
 \begin{attention}
 \cmd{chaos.sh} contient un \textbf{garde-fou} : il refuse de s'exécuter ailleurs que sur
-l'hôte de lab attendu (\cmd{hostname -s}), pour ne jamais arrêter Nginx sur le vrai reverse
-proxy. Un cron déclenche aussi un incident toutes les 2 h, réparé automatiquement 45 min après.
+l'hôte de lab attendu (\cmd{hostname -s}). Le trigger disque exige $>$90\% pendant
+\textbf{5 min} : l'alerte n'apparaît donc que $\approx$5 min après le déclenchement (le
+scénario \cmd{service} n'est, lui, pas supervisé — préférer \cmd{disk}). Un cron déclenche
+aussi un incident toutes les 2 h, réparé automatiquement 45 min après.
 \end{attention}
 
 % ======================= ETAPE 4 : SAUVEGARDES =======================

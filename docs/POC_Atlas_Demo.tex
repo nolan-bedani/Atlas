@@ -132,9 +132,21 @@ ssh -L 3000:10.30.0.14:3000 root@138.201.135.108   # Grafana
 Puis ouvrir 3 onglets navigateur : \url{https://localhost:8443}, \url{http://localhost:8080},
 \url{http://localhost:3000}. \textbf{Ne pas encore les montrer.}
 
+\subsection*{« Armer » l'incident chaos (indispensable)}
+Le trigger disque de Zabbix exige que le disque reste $>$90\% \textbf{pendant 5 minutes}
+(anti-faux-positif) : l'alerte n'apparaît donc que \textbf{5 min après} le déclenchement.
+On \textbf{arme donc l'incident tout de suite}, avant l'Acte 1 ; il sera visible pile au
+moment de l'Acte 3.
+
+\begin{lstlisting}[style=bash]
+# (Terminal A, TOUT AU DEBUT) declencher le remplissage disque sur la machine de lab
+ssh root@138.201.135.108 'pct exec 208 -- /opt/atlas/scripts/chaos.sh disk'
+\end{lstlisting}
+
 \begin{attention}
 Vérifier 5 min avant : les 3 tunnels montent, Zabbix affiche 10 hôtes verts (état sain de
-départ), et la machine de lab est réparée (\cmd{chaos.sh clean} si un incident cron traîne).
+départ), et la machine de lab est propre (\cmd{... chaos.sh clean} si un incident cron
+traîne). \textbf{Puis} armer l'incident disque ci-dessus juste avant de commencer à parler.
 \end{attention}
 
 % ===================== ACTE 1 =====================
@@ -192,12 +204,18 @@ CPU/RAM/disque des hôtes en direct.
 \subsection*{2.1 — Rien n'est fait à la main : tout est reproductible}
 \begin{lstlisting}[style=bash]
 # (Terminal A) simulation : est-ce que le reel colle au code ?
-ansible-playbook site.yaml --check --diff --tags zabbix --limit atlzbx01p
+ansible-playbook site.yaml --check --diff --tags bastion --limit atlbst01p
 \end{lstlisting}
 \begin{montrer}
-Le playbook tourne en \textbf{mode simulation} et affiche \cmd{ok=…} \cmd{changed=0} :
-l'infrastructure réelle est \textbf{déjà conforme au code}. Aucune dérive.
+Le playbook tourne en \textbf{mode simulation} et le bilan affiche
+\cmd{changed=0  failed=0} : l'infrastructure réelle est \textbf{déjà conforme au code}.
+Aucune dérive.
 \end{montrer}
+\begin{attention}
+Utiliser le tag \cmd{bastion} (et non \cmd{zabbix}) : en mode \cmd{--check}, le rôle
+\cmd{zabbix} échoue faussement (une tâche crée le dossier TLS, simulé donc absent, et la
+tâche suivante ne le trouve pas). Le rôle \cmd{bastion} donne un \cmd{changed=0} propre.
+\end{attention}
 \begin{dire}
 « Toute l'infra est décrite en Ansible. Je peux la rejouer à l'identique : ici la
 simulation ne propose aucun changement, preuve que le serveur EST son code. C'est ce qui
@@ -207,40 +225,42 @@ garantit qu'on saura tout reconstruire à l'identique en cas de sinistre. »
 % ===================== ACTE 3 =====================
 \acte{ACTE 3 — « C'est résilient » : chaos en direct}{~3 min}
 
-\subsection*{3.1 — On casse volontairement un service}
-\begin{lstlisting}[style=bash]
-# (Terminal A) on arrete nginx sur la machine de lab
-ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh service"
-\end{lstlisting}
-\begin{montrer}
-La commande confirme « INCIDENT DÉCLENCHÉ : service (nginx arrêté) ».
-\end{montrer}
+\subsection*{3.1 — Rappel : l'incident a été armé au début}
+On a lancé le remplissage disque en préparation (\cmd{chaos.sh disk} sur \cmd{atltst01p}) :
+le disque est monté à $>$90\%. \textbf{5 minutes plus tard}, le trigger se déclenche — c'est
+maintenant.
 \begin{dire}
-« Je provoque une panne réelle mais contrôlée. Maintenant, sans rien dire à Zabbix,
-retournons voir la supervision. »
+« En début de démo, j'ai provoqué une panne réelle mais contrôlée sur la machine de lab :
+son disque s'est rempli. Voyons ce que la supervision en a fait, sans que j'aie touché à
+Zabbix. »
 \end{dire}
 
-\subsection*{3.2 — Zabbix détecte la panne tout seul}
+\subsection*{3.2 — Zabbix a détecté la panne tout seul}
 \begin{lstlisting}[style=bash]
 http://localhost:8080     # Monitoring -> Problems (rafraichir)
 \end{lstlisting}
 \begin{montrer}
-Un \textbf{problème apparaît} sur \cmd{atltst01p} (service indisponible). La détection est
-automatique — on n'a rien configuré en direct.
+Un problème \textbf{rouge (Haute sévérité)} sur \cmd{atltst01p} :
+\textbf{« FS [/]: Space is critically low (used > 90\%) »}. Détection automatique, aucune
+config en direct. \emph{(Validé en répétition : alerte levée $\approx$ 5 min après le
+déclenchement.)}
 \end{montrer}
 
 \subsection*{3.3 — On répare, et l'alerte se résout}
 \begin{lstlisting}[style=bash]
 # (Terminal A)
-ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh clean"
+ssh root@138.201.135.108 'pct exec 208 -- /opt/atlas/scripts/chaos.sh clean'
 \end{lstlisting}
 \begin{montrer}
-Retour dans Zabbix : le problème passe en \textbf{Resolved}, l'hôte redevient vert. La
-boucle « je casse $\rightarrow$ ça alerte $\rightarrow$ je répare » est bouclée en direct.
+Le disque de \cmd{atltst01p} revient à $\sim$24\%. Dans Zabbix, le problème repasse en
+\textbf{Resolved} et l'hôte redevient vert : la boucle « je casse $\rightarrow$ ça alerte
+$\rightarrow$ je répare » est bouclée.
 \end{montrer}
 \begin{attention}
-\cmd{chaos.sh} a un garde-fou : il refuse de s'exécuter ailleurs que sur la machine de lab.
-Aucun risque pour les vrais services pendant la démo.
+\cmd{chaos.sh} a un garde-fou : il refuse de s'exécuter ailleurs que sur \cmd{atltst01p}
+(vérif \cmd{hostname -s}). Aucun risque pour les vrais services. \textbf{Ne pas utiliser le
+scénario \cmd{service}} (arrêt de nginx) : nginx n'est pas supervisé sur la machine de lab,
+donc il ne lèverait aucune alerte. Le scénario \cmd{disk} est le bon pour la démo.
 \end{attention}
 
 % ===================== ACTE 4 =====================
@@ -333,10 +353,11 @@ RTO $\leq$ 40 min          & Acte 5 — restauration en une commande, RTO mesur�
 \addcontentsline{toc}{section}{Aide-mémoire (1 page)}
 
 \begin{enumerate}[leftmargin=1.5em,itemsep=4pt]
+  \item \textbf{Au tout début — armer le chaos} : \cmd{ssh root@138.201.135.108 'pct exec 208 -- /opt/atlas/scripts/chaos.sh disk'} (l'alerte arrive $\approx$5 min après, pile pour l'Acte 3).
   \item \textbf{Ça tourne} : \cmd{ssh root@138.201.135.108 'pct list'} $\rightarrow$ 9 running ;
         puis les 3 onglets : GLPI (HTTPS), Zabbix (10 verts), Grafana.
-  \item \textbf{C'est du code} : \cmd{ansible-playbook site.yaml --check --diff --tags zabbix --limit atlzbx01p} $\rightarrow$ 0 changed.
-  \item \textbf{Chaos} : \cmd{ansible atltst01p -m command -a ".../chaos.sh service"} $\rightarrow$ Zabbix voit $\rightarrow$ \cmd{... chaos.sh clean} $\rightarrow$ résolu.
+  \item \textbf{C'est du code} : \cmd{ansible-playbook site.yaml --check --diff --tags bastion --limit atlbst01p} $\rightarrow$ changed=0.
+  \item \textbf{Chaos} : Zabbix $\rightarrow$ Problems affiche « FS [/]: Space is critically low » (rouge) $\rightarrow$ réparer : \cmd{ssh ... 'pct exec 208 -- .../chaos.sh clean'} $\rightarrow$ résolu.
   \item \textbf{RPO} : \cmd{ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'} + \cmd{ssh root@10.30.0.13 '... db-remote ...'}.
   \item \textbf{RTO} : \cmd{ansible-playbook pra_restore_granular.yaml -e "pra_target_dump=..."} (ou \cmd{pra_restore_full.yaml}).
 \end{enumerate}
