@@ -1,0 +1,25 @@
+TASK [glpi : Vérifier que GLPI répond en HTTP] *********************************
+TASK [zabbix : Autoriser le trapper Zabbix (port 10051)] ***********************
+TASK [Fixer le chemin du dump retenu] ******************************************
+TASK [Afficher le dump retenu pour la restauration] ****************************
+msg: 'Dump retenu : /var/backups/atlas/db-remote/glpi_dump_20260716_005001.sql.gz'
+TASK [Restaurer la base glpi_db depuis le dump] ********************************
+TASK [Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p] *************
+TASK [Remettre les permissions www-data sur le filestore GLPI] *****************
+TASK [Vérifier que GLPI répond en HTTP (backend direct)] ***********************
+TASK [Vérifier que GLPI répond via le reverse proxy HTTPS] *********************
+msg: 'Vérification base : [''COUNT(*)'', ''25'']'
+TASK [Vérifier que le port 10051 du serveur Zabbix est ouvert] *****************
+TASK [Afficher le RTO mesuré] **************************************************
+msg: 'RTO mesuré : 3 minutes 15 secondes (cible : 40 minutes)'
+PLAY RECAP *********************************************************************
+atlapp01p                  : ok=49   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+atlbkp01p                  : ok=35   changed=2    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+atlbst01p                  : ok=31   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atldb01p                   : ok=58   changed=7    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+atlgrf01p                  : ok=25   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atlrp01p                   : ok=36   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+atlsmtp01p                 : ok=33   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+atltst01p                  : ok=25   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atlzbx01p                  : ok=71   changed=2    unreachable=0    failed=0    skipped=16   rescued=0    ignored=0   
+proxmox_node               : ok=32   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
