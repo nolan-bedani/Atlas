@@ -14,7 +14,7 @@
     api_token_id: "{{ vault_proxmox_token_id | default(omit) }}"
     api_token_secret: "{{ vault_proxmox_token_secret | default(omit) }}"
     api_password: "{{ vault_proxmox_password | default(omit) }}"
-    validate_certs: false
+    validate_certs: "{{ proxmox_validate_certs }}"
     vmid: "{{ conteneur.vmid }}"
     hostname: "{{ conteneur.hostname }}"
     state: started

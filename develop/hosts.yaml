@@ -6,6 +6,13 @@ all:
   children:
     # ─── Hôte Proxmox (control node / hyperviseur) ───
     proxmox:
+      vars:
+        # L'API Proxmox (port 8006) présente un certificat auto-signé : la CA
+        # interne n'est pas dans le trust store du contrôleur. On désactive donc
+        # la vérification TLS pour CE nœud uniquement (le défaut du rôle reste
+        # true). Sans cela, proxmox_provision et pra_restore_full échouent sur
+        # « CERTIFICATE_VERIFY_FAILED ».
+        proxmox_validate_certs: false
       hosts:
         proxmox_node:
           ansible_host: "138.201.135.108"
