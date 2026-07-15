@@ -111,13 +111,21 @@
     - name: "Bloc de restauration des données (base + filestore)"
       block:
         # ─── Sélection du dump à restaurer ───
-        # awk 'NR==1' (et non head -1) : head ferme le tuyau après la 1re ligne,
-        # ce qui envoie SIGPIPE à ls (rc 141) sous « set -o pipefail » quand les
-        # dumps sont nombreux. awk consomme tout le flux → pas de SIGPIPE.
-        - name: "Déterminer le dernier dump disponible sur atlbkp01p"
-          ansible.builtin.shell: >
-            set -o pipefail;
-            ls -t /var/backups/atlas/db-remote/*.sql.gz | awk 'NR==1'
+        # On retient le dump le plus récent qui est VALIDE (non vide + gzip -t OK),
+        # et non aveuglément le plus récent : une réplique hors-site tronquée
+        # (0 octet si la réplication a copié un dump en cours d'écriture) ne doit
+        # jamais faire échouer la reprise. On parcourt du plus récent au plus ancien.
+        - name: "Déterminer le dernier dump VALIDE disponible sur atlbkp01p"
+          ansible.builtin.shell: |
+            set -o pipefail
+            for f in $(ls -t /var/backups/atlas/db-remote/*.sql.gz); do
+              if [ -s "$f" ] && gzip -t "$f" 2>/dev/null; then
+                echo "$f"
+                exit 0
+              fi
+            done
+            echo "Aucun dump valide (non vide et gzip -t OK) dans db-remote." >&2
+            exit 1
           args:
             executable: /bin/bash
           delegate_to: atlbkp01p
