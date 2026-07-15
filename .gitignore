@@ -21,3 +21,6 @@ develop/group_vars/all/vault.yaml
 .cache/
 *.retry
 scripts/setup_vlan_routing.sh.bak
+
+# Fichiers temporaires Office
+~$*
