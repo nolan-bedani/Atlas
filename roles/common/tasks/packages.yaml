@@ -24,6 +24,7 @@
       - ca-certificates
       - gnupg
       - python3-apt
+      - python3-cryptography  # requis par community.crypto.openssl_* (TLS Zabbix / reverse proxy)
       - ufw
       - sudo            # absent du template LXC debian-12-standard
     state: present
