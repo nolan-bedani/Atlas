@@ -1,0 +1,512 @@
+% ============================================================================
+%  Atlas - POC Helpdesk GLPI / PRA-DR : Procedure d'exploitation
+%  Compilation : pdflatex POC_Atlas_Procedure.tex  (2 passes pour la TOC)
+%  Paquets requis (TeX Live full / MiKTeX) : babel, geometry, xcolor,
+%  listings, tcolorbox, booktabs, tabularx, titlesec, fancyhdr, hyperref.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{underscore} % permet d'ecrire les _ des noms de fichiers en clair
+\usepackage[hidelinks,colorlinks=true,linkcolor=atlasblue,urlcolor=atlasblue]{hyperref}
+
+% ---- Palette Atlas (NOC / mission control) ----
+\definecolor{atlasblue}{HTML}{1F6FEB}
+\definecolor{atlasdark}{HTML}{0D1B2A}
+\definecolor{atlasgray}{HTML}{F2F4F8}
+\definecolor{atlasgreen}{HTML}{2EA043}
+\definecolor{atlasred}{HTML}{CF222E}
+\definecolor{atlasamber}{HTML}{9A6700}
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{codekw}{HTML}{CF222E}
+\definecolor{codecom}{HTML}{6E7781}
+\definecolor{codestr}{HTML}{0A3069}
+
+% ---- Titres colores ----
+\titleformat{\section}{\Large\bfseries\color{atlasblue}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{atlasdark}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{2.2ex plus 1ex minus .2ex}{1.2ex}
+
+% ---- En-tetes / pieds ----
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{atlasdark}\textbf{Atlas} — POC Helpdesk / PRA-DR}
+\rhead{\small\color{codecom}\thepage}
+\rfoot{\small\color{codecom}Document interne — usage POC}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ---- Style code ----
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=leftline,
+  framerule=2pt,
+  rulecolor=\color{atlasblue},
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecom}\itshape,
+  stringstyle=\color{codestr},
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  xleftmargin=1em,
+  aboveskip=1em,
+  belowskip=1em,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate=%
+    {é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {ë}{{\"e}}1
+    {à}{{\`a}}1 {â}{{\^a}}1 {ä}{{\"a}}1
+    {î}{{\^i}}1 {ï}{{\"i}}1 {ô}{{\^o}}1 {ö}{{\"o}}1
+    {û}{{\^u}}1 {ù}{{\`u}}1 {ü}{{\"u}}1 {ç}{{\c c}}1
+    {É}{{\'E}}1 {È}{{\`E}}1 {Ê}{{\^E}}1 {À}{{\`A}}1
+    {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1
+    {→}{{$\rightarrow$}}1 {≤}{{$\leq$}}1 {œ}{{\oe}}1
+}
+\lstdefinestyle{bash}{language=bash,morekeywords={ansible,ansible-playbook,ssh,rsync,systemctl,mysql,mysqldump,zcat,pct,iptables,curl}}
+\lstdefinestyle{yaml}{language=yaml}
+\lstdefinestyle{plain}{}
+
+% ---- Boites d'appel ----
+\newtcolorbox{pourquoi}{enhanced,breakable,colback=atlasblue!5,colframe=atlasblue,
+  fonttitle=\bfseries,title=Pourquoi cette commande ?,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{attention}{enhanced,breakable,colback=atlasred!5,colframe=atlasred,
+  fonttitle=\bfseries,title=Attention,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{astuce}{enhanced,breakable,colback=atlasgreen!6,colframe=atlasgreen,
+  fonttitle=\bfseries,title=Astuce,left=2mm,right=2mm,top=1mm,bottom=1mm}
+
+\newcommand{\cmd}[1]{{\ttfamily #1}}
+
+\begin{document}
+
+% ======================= PAGE DE TITRE =======================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\color{atlasblue}\rule{\linewidth}{2pt}}\\[0.6cm]
+{\Huge\bfseries\color{atlasdark} Projet Atlas}\\[0.35cm]
+{\LARGE Portail Helpdesk GLPI — Plan de Reprise d'Activité}\\[0.25cm]
+{\large\color{codecom} Procédure d'exploitation du POC (Infrastructure as Code)}\\[0.4cm]
+{\color{atlasblue}\rule{\linewidth}{2pt}}\\[1.4cm]
+
+\begin{tcolorbox}[width=0.85\linewidth,colback=atlasgray,colframe=atlasdark,sharp corners]
+\centering\small
+\textbf{Contraintes de reprise} : RPO $\leq$ 20 min \quad|\quad RTO $\leq$ 40 min\\[2pt]
+\textbf{Méthode} : 100\% IaC (Ansible) — aucun « clic-clic » non tracé\\[2pt]
+\textbf{Hyperviseur} : Proxmox VE 8.4 (pve01, 138.201.135.108)\\[2pt]
+\textbf{Périmètre} : 9 conteneurs LXC — 3 VLAN (DMZ / LAN-ADMIN / MGMT)
+\end{tcolorbox}
+
+\vfill
+{\color{codecom}\small Document interne — support de présentation et d'exploitation du POC}\\
+{\color{codecom}\small Généré le \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ======================= 1. PRESENTATION =======================
+\section{Présentation du POC}
+
+\subsection{Objectif}
+Atlas est un \textbf{portail de tickets d'assistance (GLPI)} déployé de bout en bout par
+Infrastructure as Code. L'objectif du POC est de démontrer qu'un incident majeur
+(perte de VM, corruption de données, panne de service) peut être détecté puis corrigé
+\textbf{dans les délais contractuels} : RPO $\leq$ 20 minutes (perte de données maximale)
+et RTO $\leq$ 40 minutes (durée de remise en service).
+
+\subsection{Architecture}
+Deux chemins réseau \emph{indépendants} coexistent :
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Chemin utilisateur (web)} : Internet $\rightarrow$ Reverse Proxy TLS
+        (atlrp01p, DMZ) $\rightarrow$ GLPI (atlapp01p) $\rightarrow$ MariaDB (atldb01p).
+  \item \textbf{Chemin administration (SSH)} : Admin $\rightarrow$ Bastion (atlbst01p, MGMT)
+        $\rightarrow$ rebond vers tous les LXC. Aucun service n'est exposé sur Internet ;
+        l'accès admin passe par tunnels SSH.
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{@{}l l l X@{}}
+\toprule
+\textbf{Conteneur} & \textbf{VMID} & \textbf{IP} & \textbf{Rôle} \\
+\midrule
+atlbst01p & 200 & 10.90.0.10 & Bastion SSH — point d'entrée admin unique \\
+atlrp01p  & 201 & 10.20.0.10 & Reverse proxy Nginx (TLS) \\
+atlapp01p & 202 & 10.20.0.11 & Application GLPI (PHP-FPM) \\
+atldb01p  & 203 & 10.30.0.10 & Base de données MariaDB \\
+atlsmtp01p& 204 & 10.30.0.11 & Relais SMTP Postfix \\
+atlzbx01p & 205 & 10.30.0.12 & Supervision Zabbix (serveur + frontend) \\
+atlbkp01p & 206 & 10.30.0.13 & Serveur de sauvegarde (copies distantes) \\
+atlgrf01p & 207 & 10.30.0.14 & Grafana (visualisation) \\
+atltst01p & 208 & 10.20.0.20 & Machine de test (chaos engineering) \\
+\bottomrule
+\end{tabularx}
+\caption{Les 9 conteneurs LXC du POC Atlas.}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+\textbf{VLAN} & \textbf{Sous-réseau} & \textbf{Usage} \\
+\midrule
+20 (DMZ)        & 10.20.0.0/24 & Services exposés indirectement (reverse proxy, GLPI, test) \\
+30 (LAN-ADMIN)  & 10.30.0.0/24 & Données \& supervision (BDD, SMTP, Zabbix, backup, Grafana) \\
+90 (MGMT)       & 10.90.0.0/24 & Management — bastion SSH uniquement \\
+\bottomrule
+\end{tabularx}
+\caption{Segmentation réseau. Le transit inter-VLAN est refusé par défaut (politique iptables \cmd{FORWARD DROP}), seuls les flux de la matrice de moindre privilège sont autorisés.}
+\end{table}
+
+% ======================= 2. PREREQUIS =======================
+\section{Prérequis et poste de pilotage}
+
+Toutes les commandes Ansible se lancent depuis le \textbf{control node}, l'hyperviseur
+\textbf{pve01} (\cmd{138.201.135.108}), où réside le dépôt du projet.
+
+\begin{lstlisting}[style=bash]
+# Se connecter au control node
+ssh root@138.201.135.108
+cd /root/atlas          # repertoire du depot Ansible
+
+# Verifier les outils
+ansible --version        # Ansible core
+ansible-inventory -i develop/hosts.yaml --graph   # voir les groupes/hotes
+\end{lstlisting}
+
+\begin{pourquoi}
+La commande \cmd{ansible-inventory --graph} affiche l'arborescence des groupes
+(\cmd{proxmox}, \cmd{mgmt}, \cmd{dmz}, \cmd{lan_admin}) et confirme que l'inventaire
+est lisible \emph{avant} de lancer quoi que ce soit. C'est le premier filet de sécurité :
+si un hôte manque ici, le playbook échouera.
+\end{pourquoi}
+
+\paragraph{Éléments sensibles (hors dépôt Git).}
+\begin{itemize}[leftmargin=1.4em]
+  \item Clé SSH d'administration : \cmd{/root/.ssh/atlas_ed25519} (rebond bastion).
+  \item Mot de passe du coffre Ansible : \cmd{.vault_pass} (déchiffre les secrets \cmd{vault\_*}).
+  \item Configuration : \cmd{ansible.cfg} pointe déjà l'inventaire, le \cmd{roles_path}
+        et le vault. Aucune option à répéter en ligne de commande en usage normal.
+\end{itemize}
+
+\begin{attention}
+\textbf{Reprise du control node.} Si \cmd{pve01} est lui-même le sinistré, Ansible doit
+pouvoir tourner depuis un poste de secours : copier \cmd{atlas_ed25519} + \cmd{.vault_pass}
+(coffre hors site) puis surcharger la clé sans éditer \cmd{ansible.cfg} :
+\cmd{ansible-playbook ... -e ansible_ssh_private_key_file=<chemin>}. Cette bascule doit
+être testée régulièrement pour garantir le RTO.
+\end{attention}
+
+% ======================= 3. FIX RECENTS =======================
+\section{Corrections intégrées à l'IaC (juillet 2026)}
+Trois corrections de supervision ont été appliquées puis \textbf{pérennisées dans le
+playbook} (elles survivent donc à toute réexécution) :
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}l X l@{}}
+\toprule
+\textbf{Fix} & \textbf{Correction} & \textbf{Fichier modifié} \\
+\midrule
+B & Flux firewall supervision $\rightarrow$ bastion (VLAN30$\rightarrow$90, ports 10050/10051)
+  & \cmd{roles/proxmox_network/defaults/main.yaml} \\
+C & Agent Zabbix accepte les checks passifs locaux (\cmd{127.0.0.1})
+  & \cmd{roles/zabbix_agent/templates/zabbix_agent2.conf.j2} \\
+A & Désactivation des items internes « not supported » (bruit)
+  & \cmd{roles/zabbix/tasks/tune_health.yaml} \\
+\bottomrule
+\end{tabularx}
+\caption{Corrections encodées dans l'IaC. Un simple \cmd{--tags proxmox\_network,zabbix} redéploie l'ensemble.}
+\end{table}
+
+% ======================= 4. RELANCER LE PLAYBOOK EN SECURITE =======================
+\section{Relancer le playbook — la séquence de tests \emph{avant} d'appliquer}
+\label{sec:tests}
+
+\begin{astuce}
+Règle d'or : on ne lance jamais un \cmd{ansible-playbook} « à sec » en production sans
+avoir passé les 3 filets ci-dessous, dans l'ordre : \textbf{(1)} syntaxe,
+\textbf{(2)} périmètre, \textbf{(3)} simulation. Puis seulement l'application réelle.
+\end{astuce}
+
+\subsection{Étape 1 — Vérification de syntaxe}
+\begin{lstlisting}[style=bash]
+ansible-playbook site.yaml --syntax-check
+\end{lstlisting}
+\begin{pourquoi}
+Analyse le YAML et le graphe des rôles \emph{sans se connecter} à aucune machine.
+Détecte les fautes d'indentation, les tâches malformées, les rôles introuvables.
+Coût nul, à lancer après chaque édition du playbook.
+\end{pourquoi}
+
+\subsection{Étape 2 — Vérifier le périmètre (quoi et où)}
+\begin{lstlisting}[style=bash]
+ansible-playbook site.yaml --list-hosts     # sur quels hotes ca va tourner
+ansible-playbook site.yaml --list-tasks     # quelles taches, dans quel ordre
+\end{lstlisting}
+\begin{pourquoi}
+\cmd{--list-hosts} garantit qu'on ne va pas toucher un hôte non prévu ;
+\cmd{--list-tasks} montre l'enchaînement exact (utile pour repérer où agit un tag).
+Toujours confirmer la cible \emph{avant} d'exécuter, surtout en production.
+\end{pourquoi}
+
+\subsection{Étape 3 — Simulation (dry-run) avec diff}
+\begin{lstlisting}[style=bash]
+# Simulation globale : rien n'est modifie, on voit ce QUI changerait
+ansible-playbook site.yaml --check --diff
+
+# Simulation ciblee sur un seul role + un seul hote
+ansible-playbook site.yaml --check --diff --tags zabbix --limit atlzbx01p
+\end{lstlisting}
+\begin{pourquoi}
+\cmd{--check} exécute en « mode blanc » (aucune écriture réelle) et \cmd{--diff} affiche
+les différences ligne à ligne des fichiers qui seraient modifiés. C'est la répétition
+générale : si le diff montre autre chose que prévu, on corrige \emph{avant} d'appliquer.
+\end{pourquoi}
+\begin{attention}
+Le mode \cmd{--check} n'est pas parfait : les tâches qui dépendent d'un résultat
+précédent (API, \cmd{shell}) peuvent être « skippées » ou signalées à tort. Il valide
+l'intention, pas un résultat garanti à 100\%.
+\end{attention}
+
+\subsection{Étape 4 — Application réelle}
+\begin{lstlisting}[style=bash]
+# Deploiement complet (idempotent : rejouable sans risque)
+ansible-playbook site.yaml
+
+# Application ciblee (recommande pour une correction precise)
+ansible-playbook site.yaml --tags zabbix                    # supervision seule
+ansible-playbook site.yaml --tags proxmox_network           # firewall/VLAN de l'hote
+ansible-playbook site.yaml --tags zabbix --limit atlzbx01p  # 1 role + 1 hote
+\end{lstlisting}
+\begin{pourquoi}
+Le playbook est \textbf{idempotent} : le relancer sur une infra déjà conforme ne change
+rien (état « ok », zéro « changed »). Les \textbf{tags} permettent de n'appliquer qu'un
+sous-ensemble (ex. seulement la supervision), et \cmd{--limit} restreint aux hôtes visés :
+c'est le principe de moindre impact.
+\end{pourquoi}
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+\textbf{Tag} & \textbf{Périmètre} \\
+\midrule
+\cmd{proxmox_network}   & Réseau VLAN + firewall iptables de l'hyperviseur \\
+\cmd{proxmox_provision} & Création/configuration des conteneurs LXC \\
+\cmd{common}            & Socle commun (durcissement SSH, UFW, NTP) \\
+\cmd{bastion}           & Bastion SSH \\
+\cmd{mariadb}           & Base de données \\
+\cmd{backup}            & Chaîne de sauvegarde \\
+\cmd{glpi} / \cmd{glpi_seed} & Application GLPI / données de démo \\
+\cmd{reverse_proxy}     & Reverse proxy Nginx TLS \\
+\cmd{zabbix}            & Serveur + agents de supervision \\
+\cmd{grafana}           & Tableaux de bord \\
+\cmd{testlab}           & Machine de chaos engineering \\
+\bottomrule
+\end{tabularx}
+\caption{Tags disponibles dans \cmd{site.yaml} (voir l'en-tête du fichier).}
+\end{table}
+
+% ======================= 5. PRA RESTORE FULL =======================
+\section{PRA — Restauration complète (perte de VM)}
+Scénario : un ou plusieurs conteneurs sont perdus. Le playbook \cmd{pra_restore_full.yaml}
+reconstruit toute la chaîne \emph{dans l'ordre de dépendance}, restaure les données, puis
+\textbf{mesure le RTO} automatiquement.
+
+\begin{lstlisting}[style=bash]
+# 1) Tests prealables (comme en section 4)
+ansible-playbook pra_restore_full.yaml --syntax-check
+ansible-playbook pra_restore_full.yaml --list-tasks
+
+# 2) Restauration complete (dernier dump distant utilise automatiquement)
+ansible-playbook pra_restore_full.yaml
+
+# 3) Restauration a partir d'un dump precis (optionnel)
+ansible-playbook pra_restore_full.yaml \
+  -e "pra_restore_dump=/var/backups/atlas/db-remote/glpi_dump_20260715_195001.sql.gz"
+\end{lstlisting}
+
+\begin{pourquoi}
+Sans \cmd{pra_restore_dump}, le playbook sélectionne \emph{automatiquement} le dump le plus
+récent présent sur \cmd{atlbkp01p} (\cmd{ls -t | head -1}) : on repart donc du point de
+récupération le plus proche possible (RPO minimal). On ne fournit un dump précis que pour
+rejouer un état antérieur particulier.
+\end{pourquoi}
+
+\paragraph{Ce que fait le playbook (résumé).}
+\begin{enumerate}[leftmargin=1.6em]
+  \item Horodatage de début + journal \cmd{/var/log/atlas/pra_restore_full.log}.
+  \item Reprovisioning LXC, socle \cmd{common}, bastion.
+  \item Reconstruction des services : MariaDB $\rightarrow$ SMTP $\rightarrow$ GLPI
+        $\rightarrow$ reverse proxy $\rightarrow$ Zabbix $\rightarrow$ backup.
+  \item Restauration des données (bloc \cmd{block/rescue/always}) : transfert du dump
+        \cmd{atlbkp01p} $\rightarrow$ \cmd{atldb01p}, import dans \cmd{glpi_db},
+        restauration du filestore GLPI, puis \textbf{suppression du dump temporaire}
+        (jamais de base en clair dans \cmd{/tmp}).
+  \item Vérifications : GLPI en HTTP direct \emph{et} via le reverse proxy HTTPS,
+        comptage des tickets, port Zabbix 10051 ouvert.
+  \item Calcul et journalisation du \textbf{RTO mesuré} (comparé à la cible 40 min).
+\end{enumerate}
+
+\begin{attention}
+En cas d'échec pendant la restauration des données, le bloc \cmd{rescue} journalise
+l'\textbf{ÉCHEC} et \cmd{any_errors_fatal} interrompt le PRA : on ne poursuit jamais sur
+une base à moitié restaurée. Le \cmd{always} nettoie systématiquement le dump temporaire.
+\end{attention}
+
+% ======================= 6. PRA RESTORE GRANULAIRE =======================
+\section{PRA — Restauration granulaire (tickets supprimés)}
+Scénario : des tickets ont été supprimés/corrompus, mais l'infrastructure est saine.
+On ne veut restaurer \emph{que} les tickets manquants, \textbf{sans écraser} ceux créés
+depuis l'incident.
+
+\begin{lstlisting}[style=bash]
+# 1) Choisir le dump anterieur a l'incident (sur atldb01p)
+ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'
+
+# 2) Lancer la restauration granulaire (dump OBLIGATOIRE)
+ansible-playbook pra_restore_granular.yaml \
+  -e "pra_target_dump=/var/backups/atlas/db/glpi_dump_20260715_193001.sql.gz"
+\end{lstlisting}
+
+\begin{pourquoi}
+La variable \cmd{pra_target_dump} est \textbf{obligatoire} (le playbook s'arrête via un
+\cmd{assert} si elle manque) : restaurer des tickets est une opération chirurgicale, on
+doit choisir explicitement la photo à réinjecter. Aucun automatisme ici, contrairement au
+restore complet.
+\end{pourquoi}
+
+\paragraph{Mécanisme de sûreté.} Le dump est restauré dans une base \emph{temporaire}
+(\cmd{glpi_restore_tmp}), jamais en production directement. Seules les tables de tickets
+sont exportées avec \cmd{mysqldump --no-create-info --insert-ignore}, puis fusionnées :
+les \cmd{INSERT IGNORE} ne touchent pas les lignes déjà présentes. \textbf{Les tickets
+créés après l'incident ne sont donc jamais écrasés.} La base temporaire est supprimée en fin
+de course, et le RPO effectif (âge du dump) est journalisé.
+
+% ======================= 7. SAUVEGARDES =======================
+\section{Sauvegardes et RPO}
+Les dumps GLPI sont produits \textbf{toutes les 15 minutes} (cron
+\cmd{5,20,35,50 * * * *}), ce qui garantit un RPO $\leq$ 15 min (meilleur que la cible de
+20 min). Chaque dump est vérifié (\cmd{gzip -t}) puis répliqué hors-site sur \cmd{atlbkp01p}.
+
+\begin{lstlisting}[style=bash]
+# Verifier les derniers dumps locaux (sur la BDD)
+ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/ | head'
+
+# Verifier la replication hors-site (sur le backup)
+ssh root@10.30.0.13 'ls -lht /var/backups/atlas/db-remote/ | head'
+
+# Consulter le journal de dump
+ssh root@10.30.0.10 'tail -5 /var/log/atlas/dump_glpi.log'
+\end{lstlisting}
+
+\begin{pourquoi}
+Vérifier que le dump le plus récent est bien présent \emph{des deux côtés} (local +
+hors-site) et daté de moins de 15 minutes prouve que la chaîne de sauvegarde est vivante —
+c'est la condition sine qua non pour tenir le RPO en cas de sinistre.
+\end{pourquoi}
+
+% ======================= 8. CHAOS =======================
+\section{Chaos engineering (validation de la détection)}
+La machine de lab \cmd{atltst01p} embarque \cmd{chaos.sh} : un générateur d'incidents
+\textbf{contrôlés et réversibles}, détectés par Zabbix. Il sert à prouver que la supervision
+et les alertes fonctionnent réellement.
+
+\begin{lstlisting}[style=bash]
+# Sur atltst01p (via rebond bastion) :
+/opt/atlas/scripts/chaos.sh run      # un scenario ALEATOIRE (cpu | disk | service)
+/opt/atlas/scripts/chaos.sh cpu      # saturation CPU temporaire (stress-ng)
+/opt/atlas/scripts/chaos.sh disk     # remplissage disque controle
+/opt/atlas/scripts/chaos.sh service  # arret de nginx
+/opt/atlas/scripts/chaos.sh clean    # REPARATION : retour a l'etat nominal
+
+# Depuis le control node, en une ligne (ad-hoc Ansible) :
+ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh service"
+ansible atltst01p -m command -a "/opt/atlas/scripts/chaos.sh clean"
+\end{lstlisting}
+
+\begin{pourquoi}
+Déclencher un incident connu permet de vérifier que Zabbix \emph{voit} la panne (alerte),
+puis que \cmd{clean} rétablit l'état nominal. C'est la boucle « je casse $\rightarrow$ ça
+alerte $\rightarrow$ je répare » qui valide la supervision de bout en bout.
+\end{pourquoi}
+
+\begin{attention}
+\cmd{chaos.sh} contient un \textbf{garde-fou} : il refuse de s'exécuter ailleurs que sur
+l'hôte de lab attendu (\cmd{hostname -s}). Sans cela, une erreur d'inventaire pourrait
+arrêter Nginx sur le vrai reverse proxy. Un cron déclenche aussi un incident toutes les
+2 h, réparé automatiquement 45 min plus tard.
+\end{attention}
+
+% ======================= 9. SUPERVISION / ACCES =======================
+\section{Accès aux interfaces (tunnels SSH)}
+Aucun service n'est exposé sur Internet : on y accède par \textbf{tunnel SSH} depuis son
+poste. Ouvrir le tunnel, puis pointer le navigateur sur \cmd{localhost}.
+
+\begin{lstlisting}[style=bash]
+# GLPI (via reverse proxy TLS)
+ssh -L 8443:10.20.0.10:443 root@138.201.135.108     # -> https://localhost:8443
+
+# Zabbix (supervision)
+ssh -L 8080:10.30.0.12:8080 root@138.201.135.108    # -> http://localhost:8080
+
+# Grafana (tableaux de bord)
+ssh -L 3000:10.30.0.14:3000 root@138.201.135.108    # -> http://localhost:3000
+\end{lstlisting}
+
+\begin{pourquoi}
+Le tunnel \cmd{ssh -L} crée un pont chiffré entre un port de votre poste et le service
+interne, sans jamais l'exposer publiquement. La surface d'attaque reste minimale : seul le
+port SSH de l'hôte est joignable de l'extérieur.
+\end{pourquoi}
+
+% ======================= 10. RECAP =======================
+\section{Aide-mémoire — commandes essentielles}
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{@{}X l@{}}
+\toprule
+\textbf{Objectif} & \textbf{Commande} \\
+\midrule
+Vérifier la syntaxe        & \cmd{ansible-playbook site.yaml --syntax-check} \\
+Voir hôtes / tâches        & \cmd{ansible-playbook site.yaml --list-hosts / --list-tasks} \\
+Simuler (dry-run)          & \cmd{ansible-playbook site.yaml --check --diff} \\
+Déployer tout              & \cmd{ansible-playbook site.yaml} \\
+Déployer un rôle           & \cmd{ansible-playbook site.yaml --tags zabbix} \\
+Restauration complète      & \cmd{ansible-playbook pra_restore_full.yaml} \\
+Restauration granulaire    & \cmd{ansible-playbook pra_restore_granular.yaml -e "pra_target_dump=..."} \\
+Vérifier les sauvegardes   & \cmd{ssh root@10.30.0.10 'ls -lht /var/backups/atlas/db/'} \\
+Lancer un incident chaos   & \cmd{ansible atltst01p -m command -a ".../chaos.sh run"} \\
+Réparer le chaos           & \cmd{ansible atltst01p -m command -a ".../chaos.sh clean"} \\
+\bottomrule
+\end{tabularx}
+\caption{Récapitulatif opérationnel.}
+\end{table}
+
+\vfill
+\begin{center}
+{\color{atlasblue}\rule{0.5\linewidth}{1pt}}\\[4pt]
+{\small\color{codecom} Atlas — POC Helpdesk / PRA-DR — Infrastructure as Code}
+\end{center}
+
+\end{document}
