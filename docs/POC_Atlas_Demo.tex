@@ -172,8 +172,9 @@ tourne. Regardons le service côté utilisateur. »
 https://localhost:8443
 \end{lstlisting}
 \begin{montrer}
-La page GLPI s'affiche en \textbf{HTTPS} (via le reverse proxy TLS). Se connecter, montrer
-la \textbf{liste des tickets} existants.
+La page GLPI s'affiche en \textbf{HTTPS} (via le reverse proxy TLS). Se connecter avec
+\textbf{atlasadmin} (mot de passe dans le vault ; les comptes par défaut glpi/tech/normal
+ont été désactivés — cf. durcissement §11 du dossier), montrer la \textbf{liste des tickets}.
 \end{montrer}
 \begin{dire}
 « Le trafic utilisateur entre par le reverse proxy chiffré, qui sert GLPI — la base
