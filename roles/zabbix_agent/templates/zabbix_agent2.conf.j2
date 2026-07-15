@@ -4,7 +4,10 @@
 # ══════════════════════════════════════════════
 
 # ─── Serveur de supervision ───
-Server={{ zabbix_agent_server_ip }}
+# 127.0.0.1 autorisé en plus du serveur : l'hôte « Zabbix server » se supervise
+# lui-même via l'interface loopback (checks passifs locaux). Sans cette entrée,
+# l'agent réinitialise la connexion (ECONNRESET → « agent is not available »).
+Server=127.0.0.1,{{ zabbix_agent_server_ip }}
 ServerActive={{ zabbix_agent_server_ip }}
 
 # ─── Identité de l'hôte ───

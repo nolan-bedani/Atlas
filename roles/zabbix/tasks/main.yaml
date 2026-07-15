@@ -11,3 +11,4 @@
 - ansible.builtin.import_tasks: install_frontend.yaml
 - ansible.builtin.import_tasks: service.yaml
 - ansible.builtin.import_tasks: register_hosts.yaml
+- ansible.builtin.import_tasks: tune_health.yaml

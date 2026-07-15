@@ -34,6 +34,26 @@ zabbix_grafana_username: "grafana"
 # Groupe d'utilisateurs Zabbix portant les droits en lecture seule sur Atlas.
 zabbix_grafana_usergroup: "Grafana RO"
 
+# ─── Réduction du bruit du template « Zabbix server health » ───
+# Ces compteurs internes surveillent des sous-systèmes désactivés par défaut
+# (IPMI, Java, VMware, SNMP traps, rapports PDF, connecteurs). Sur une infra
+# qui ne les utilise pas, ils tombent en « not supported » et polluent le
+# tableau de bord sans valeur. On les désactive via l'API (idempotent).
+# Mettre à [] pour conserver le comportement natif de Zabbix.
+zabbix_health_template: "Zabbix server health"
+zabbix_health_disabled_items:
+  - "zabbix[connector_queue]"
+  - "zabbix[process,connector manager,avg,busy]"
+  - "zabbix[process,connector worker,avg,busy]"
+  - "zabbix[process,ipmi manager,avg,busy]"
+  - "zabbix[process,ipmi poller,avg,busy]"
+  - "zabbix[process,java poller,avg,busy]"
+  - "zabbix[process,report manager,avg,busy]"
+  - "zabbix[process,report writer,avg,busy]"
+  - "zabbix[process,snmp trapper,avg,busy]"
+  - "zabbix[process,vmware collector,avg,busy]"
+  - "zabbix[vmware,buffer,pused]"
+
 # ─── Débogage ───
 
 zabbix_debug: false
