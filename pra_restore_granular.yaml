@@ -86,7 +86,7 @@
         umask 077;
         mysqldump --no-create-info --skip-add-drop-table --insert-ignore
         glpi_restore_tmp
-        glpi_tickets glpi_tickets_users glpi_tickets_groups
+        glpi_tickets glpi_tickets_users glpi_groups_tickets
         glpi_itilsolutions glpi_itilfollowups
         > /tmp/tickets_restore.sql
       args:
