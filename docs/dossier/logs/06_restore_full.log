@@ -1,0 +1,63 @@
+[WARNING]: Collection ansible.posix does not support Ansible version 2.14.18
+[WARNING]: Collection community.crypto does not support Ansible version 2.14.18
+
+PLAY [PRA — Horodatage de début] ***********************************************
+
+TASK [Enregistrer l'horodatage de début (epoch)] *******************************
+ok: [proxmox_node]
+
+TASK [Créer le répertoire de journalisation PRA] *******************************
+changed: [proxmox_node]
+
+TASK [Journaliser le début de la restauration complète] ************************
+changed: [proxmox_node]
+
+PLAY [PRA — Reprovisioning des LXC] ********************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Lister le contenu du storage local] ******************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Vérifier la présence du template Debian 12] **********
+ok: [proxmox_node] => changed=false 
+  msg: Template LXC Debian 12 présent sur le storage local.
+
+TASK [proxmox_provision : Afficher le contenu du storage local (debug)] ********
+skipping: [proxmox_node]
+
+TASK [proxmox_provision : Lister les ressources VM/CT du cluster] **************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Identifier les conflits de VMID réels] ***************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Vérifier l'absence de conflit de VMID] ***************
+ok: [proxmox_node] => changed=false 
+  msg: Aucun conflit de VMID — conteneurs absents ou déjà Atlas (idempotent).
+
+TASK [proxmox_provision : Afficher les ressources du cluster (debug)] **********
+skipping: [proxmox_node]
+
+TASK [proxmox_provision : Créer chaque conteneur LXC du projet Atlas] **********
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlbst01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlrp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlapp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atldb01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlsmtp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlzbx01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlbkp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlgrf01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atltst01p)
+
+TASK [proxmox_provision : Créer le conteneur LXC atlbst01p (VMID 200)] *********
+An exception occurred during task execution. To see the full traceback, use -vvv. The error was: requests.exceptions.SSLError: HTTPSConnectionPool(host='138.201.135.108', port=8006): Max retries exceeded with url: /api2/json/version (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:992)')))
+fatal: [proxmox_node]: FAILED! => changed=false 
+  msg: 'HTTPSConnectionPool(host=''138.201.135.108'', port=8006): Max retries exceeded with url: /api2/json/version (Caused by SSLError(SSLCertVerificationError(1, ''[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:992)'')))'
+
+NO MORE HOSTS LEFT *************************************************************
+
+PLAY RECAP *********************************************************************
+proxmox_node               : ok=18   changed=2    unreachable=0    failed=1    skipped=2    rescued=0    ignored=0   
+

@@ -1,0 +1,13 @@
+### atldb01p /var/backups/atlas/db/ ###
+total 18M
+-rw-r--r-- 1 root atlsvc 92K Jul 15 22:50 glpi_dump_20260715_225001.sql.gz
+-rw-r--r-- 1 root atlsvc 92K Jul 15 22:35 glpi_dump_20260715_223501.sql.gz
+-rw-r--r-- 1 root atlsvc 92K Jul 15 22:30 glpi_dump_20260715_223001.sql.gz
+-rw-r--r-- 1 root atlsvc 92K Jul 15 22:20 glpi_dump_20260715_222001.sql.gz
+-rw-r--r-- 1 root atlsvc 92K Jul 15 22:05 glpi_dump_20260715_220501.sql.gz
+
+### atlbkp01p /var/backups/atlas/db-remote/ ###
+total 359M
+-rw-r--r-- 1 root atlsvc  92K Jul 15 22:35 glpi_dump_20260715_223501.sql.gz
+-rw-r--r-- 1 root atlsvc  92K Jul 15 22:30 glpi_dump_20260715_223001.sql.gz
+-rw-r--r-- 1 root atlsvc  92K Jul 15 22:20 glpi_dump_20260715_222001.sql.gz
