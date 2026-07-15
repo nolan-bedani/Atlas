@@ -165,9 +165,13 @@
           no_log: true
 
         # ─── Restauration du filestore GLPI : atlbkp01p -> atlapp01p ───
+        # Le compte de transfert (atlsvc) n'est pas propriétaire de /var/lib/glpi/files
+        # (appartient à www-data) : préserver perms/propriétaire/horodatages échoue
+        # (« Operation not permitted », rc 23). On transfère uniquement le CONTENU
+        # (-rlDvz sans -p -t -g -o) ; la tâche suivante rétablit les droits www-data.
         - name: "Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p"
           ansible.builtin.shell: >
-            rsync -avz
+            rsync -rlDvz --omit-dir-times --no-perms --no-owner --no-group
             -e "ssh -i /root/.ssh/atlas_backup_ed25519 -o StrictHostKeyChecking=accept-new"
             /var/backups/atlas/filestore/ atlsvc@10.20.0.11:/var/lib/glpi/files/
           delegate_to: atlbkp01p
