@@ -1,0 +1,10 @@
+VMID       Status     Lock         Name                
+200        running                 atlbst01p           
+201        running                 atlrp01p            
+202        running                 atlapp01p           
+203        running                 atldb01p            
+204        running                 atlsmtp01p          
+205        running                 atlzbx01p           
+206        running                 atlbkp01p           
+207        running                 atlgrf01p           
+208        running                 atltst01p           

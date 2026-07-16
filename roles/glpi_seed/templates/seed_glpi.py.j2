@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ══════════════════════════════════════════════
+# Atlas — seed_glpi.py : remplissage de GLPI avec des données de démo
+# Déployé par Ansible (rôle glpi_seed) — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════
+#
+# Le jeton API est lu depuis l'environnement (GLPI_USER_TOKEN),
+# jamais écrit en dur dans ce fichier.
+#
+# Run-once : le marqueur /var/lib/glpi/.atlas_seed_done est écrit en fin
+# d'exécution ; Ansible (args.creates) empêche toute ré-exécution.
+
+import datetime
+import os
+import random
+import sys
+
+import requests
+
+# ─── Paramètres (environnement + valeurs rendues par Ansible) ───
+API_URL = os.environ.get("GLPI_API_URL", "http://127.0.0.1/apirest.php").rstrip("/")
+USER_TOKEN = os.environ.get("GLPI_USER_TOKEN", "")
+MARQUEUR = "/var/lib/glpi/.atlas_seed_done"
+NB_TICKETS = {{ glpi_seed_ticket_count }}
+TIMEOUT = 30
+
+# Graine fixe : jeu de données reproductible d'une exécution à l'autre
+random.seed(42)
+
+# En-têtes HTTP de session (complétés après initSession)
+HEADERS = {"Content-Type": "application/json"}
+
+# Compteur global des appels API en échec
+echecs = 0
+
+
+# ─── Ouverture de session API ───
+def init_session():
+    """Ouvre une session API GLPI et retourne le session_token."""
+    if not USER_TOKEN:
+        print("ERREUR : variable d'environnement GLPI_USER_TOKEN absente ou vide.")
+        sys.exit(1)
+    try:
+        reponse = requests.get(
+            f"{API_URL}/initSession",
+            headers={"Authorization": f"user_token {USER_TOKEN}"},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        print(f"ERREUR : initSession injoignable : {exc}")
+        sys.exit(1)
+    if reponse.status_code != 200:
+        print(f"ERREUR : initSession a échoué ({reponse.status_code}) : {reponse.text}")
+        sys.exit(1)
+    return reponse.json()["session_token"]
+
+
+# ─── Fermeture de session API ───
+def kill_session():
+    """Ferme proprement la session API (sans bloquer en cas d'échec)."""
+    try:
+        requests.get(f"{API_URL}/killSession", headers=HEADERS, timeout=TIMEOUT)
+    except requests.RequestException as exc:
+        print(f"AVERTISSEMENT : killSession a échoué : {exc}")
+
+
+# ─── Helper de création d'objets GLPI ───
+def creer(endpoint, payload):
+    """POST {API_URL}/{endpoint} avec {"input": payload}.
+
+    Retourne l'id créé (ou la liste des ids si payload est une liste).
+    En cas d'échec : affiche l'erreur, incrémente le compteur et retourne None.
+    """
+    global echecs
+    try:
+        reponse = requests.post(
+            f"{API_URL}/{endpoint}",
+            headers=HEADERS,
+            json={"input": payload},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        print(f"ERREUR réseau POST {endpoint} : {exc}")
+        echecs += 1
+        return None
+    if reponse.status_code not in (200, 201):
+        print(f"ERREUR POST {endpoint} ({reponse.status_code}) : {reponse.text}")
+        echecs += 1
+        return None
+    donnees = reponse.json()
+    # L'API retourne une liste d'objets {"id": ...} pour un payload liste
+    if isinstance(donnees, list):
+        return [element.get("id") for element in donnees]
+    return donnees.get("id")
+
+
+# ─── Données de démonstration (réalistes, en français) ───
+
+CATEGORIES = ["Réseau", "Matériel", "Logiciel", "Comptes & Accès"]
+
+UTILISATEURS = [
+    ("claire.martin", "Martin", "Claire"),
+    ("lucas.bernard", "Bernard", "Lucas"),
+    ("emma.petit", "Petit", "Emma"),
+    ("hugo.moreau", "Moreau", "Hugo"),
+    ("lea.garcia", "Garcia", "Léa"),
+    ("thomas.roux", "Roux", "Thomas"),
+]
+
+INTITULES_TICKETS = [
+    "Impossible de se connecter au VPN",
+    "Écran noir au démarrage",
+    "Imprimante du 2e étage en panne",
+    "Outlook ne synchronise plus",
+    "Demande d'accès au partage RH",
+    "PC très lent depuis la mise à jour",
+    "Mot de passe expiré",
+    "Clavier défectueux",
+    "Erreur 500 sur l'intranet",
+    "Téléphone IP muet",
+    "Licence Office expirée",
+    "Souris sans fil HS",
+]
+
+DESCRIPTIONS = [
+    "L'utilisateur signale le problème depuis ce matin. Le redémarrage du poste n'a rien changé. Une intervention est demandée rapidement.",
+    "Le dysfonctionnement est apparu après la dernière mise à jour. Plusieurs collègues du même service semblent également concernés.",
+    "Le problème est intermittent mais de plus en plus fréquent. L'utilisateur ne peut plus travailler normalement et demande une assistance.",
+    "Première occurrence du problème aujourd'hui. Aucune modification récente connue sur le poste. Capture d'écran disponible sur demande.",
+    "L'incident bloque une échéance importante pour le service. L'utilisateur est joignable au poste interne habituel pour un diagnostic.",
+]
+
+EXPLICATIONS_SOLUTION = [
+    "redémarrage du poste et vérification du service",
+    "remplacement du matériel défectueux par un équipement de stock",
+    "réinitialisation du mot de passe et déverrouillage du compte",
+    "mise à jour du pilote et redémarrage de l'équipement",
+    "reconfiguration du client VPN avec le nouveau profil",
+    "relance du service applicatif côté serveur",
+]
+
+
+# ─── Programme principal ───
+def main():
+    print("Ouverture de session API GLPI...")
+    session_token = init_session()
+    HEADERS["Session-Token"] = session_token
+
+    # ─── Catégories de tickets ───
+    ids_categories = []
+    for libelle in CATEGORIES:
+        identifiant = creer("ITILCategory", {"name": libelle})
+        if identifiant is not None:
+            ids_categories.append(identifiant)
+    print(f"Catégories créées : {len(ids_categories)}")
+
+    # ─── Utilisateurs ───
+    ids_utilisateurs = []
+    for login, nom, prenom in UTILISATEURS:
+        identifiant = creer(
+            "User",
+            {"name": login, "realname": nom, "firstname": prenom, "is_active": 1},
+        )
+        if identifiant is not None:
+            ids_utilisateurs.append(identifiant)
+    print(f"Utilisateurs créés : {len(ids_utilisateurs)}")
+
+    # ─── Parc informatique : ordinateurs ───
+    ids_ordinateurs = []
+    for numero in range(1, 9):
+        identifiant = creer(
+            "Computer",
+            {
+                "name": f"ATL-PC-{numero:02d}",
+                "serial": f"SN-ATL-{random.randint(100000, 999999)}",
+            },
+        )
+        if identifiant is not None:
+            ids_ordinateurs.append(identifiant)
+    print(f"Ordinateurs créés : {len(ids_ordinateurs)}")
+
+    # ─── Tickets avec cycle de vie varié ───
+    nb_crees = 0
+    maintenant = datetime.datetime.now()
+    for _ in range(NB_TICKETS):
+        # Date d'ouverture répartie sur les 14 derniers jours, heures ouvrées
+        ouverture = maintenant - datetime.timedelta(
+            days=random.randint(0, 13),
+            minutes=random.randint(0, 59),
+        )
+        ouverture = ouverture.replace(hour=random.randint(8, 17))
+
+        # Tirage du cycle de vie AVANT création : ~30 % nouveau, ~25 % en cours,
+        # ~25 % résolu, ~20 % en attente (le statut est posé à la création)
+        tirage = random.random()
+        if tirage < 0.30:
+            statut = 1  # nouveau
+        elif tirage < 0.55:
+            statut = 2  # en cours (attribué)
+        elif tirage < 0.80:
+            statut = 2  # en cours, sera résolu via ITILSolution
+        else:
+            statut = 4  # en attente
+
+        payload_ticket = {
+            "name": random.choice(INTITULES_TICKETS),
+            "content": random.choice(DESCRIPTIONS),
+            "urgency": random.randint(2, 4),
+            "status": statut,
+            "itilcategories_id": random.choice(ids_categories) if ids_categories else 0,
+            "_users_id_requester": random.choice(ids_utilisateurs) if ids_utilisateurs else 0,
+            "date": ouverture.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        ticket_id = creer("Ticket", payload_ticket)
+        if ticket_id is None:
+            continue
+        nb_crees += 1
+
+        if tirage < 0.30:
+            # Ticket laissé au statut 1 (nouveau) : rien de plus à faire
+            continue
+        if tirage < 0.55:
+            # En cours (statut 2) : suivi de prise en charge
+            creer(
+                "ITILFollowup",
+                {
+                    "itemtype": "Ticket",
+                    "items_id": ticket_id,
+                    "content": "Prise en charge du ticket, diagnostic en cours.",
+                },
+            )
+        elif tirage < 0.80:
+            # Résolu : suivi de prise en charge puis solution
+            creer(
+                "ITILFollowup",
+                {
+                    "itemtype": "Ticket",
+                    "items_id": ticket_id,
+                    "content": "Prise en charge du ticket, diagnostic en cours.",
+                },
+            )
+            creer(
+                "ITILSolution",
+                {
+                    "itemtype": "Ticket",
+                    "items_id": ticket_id,
+                    "content": f"Problème résolu : {random.choice(EXPLICATIONS_SOLUTION)}.",
+                },
+            )
+        else:
+            # En attente (statut 4 posé à la création) : suivi simple
+            creer(
+                "ITILFollowup",
+                {
+                    "itemtype": "Ticket",
+                    "items_id": ticket_id,
+                    "content": "En attente d'un retour de l'utilisateur ou d'une pièce.",
+                },
+            )
+    print(f"Tickets créés : {nb_crees}")
+
+    # ─── Fermeture de session et écriture du marqueur run-once ───
+    kill_session()
+
+    recap = (
+        f"Remplissage Atlas effectué le {maintenant.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Catégories : {len(ids_categories)}\n"
+        f"Utilisateurs : {len(ids_utilisateurs)}\n"
+        f"Ordinateurs : {len(ids_ordinateurs)}\n"
+        f"Tickets : {nb_crees}\n"
+        f"Échecs API : {echecs}\n"
+    )
+    print(
+        f"Résumé : {len(ids_categories)} catégories, {len(ids_utilisateurs)} utilisateurs, "
+        f"{len(ids_ordinateurs)} ordinateurs, {nb_crees} tickets ({echecs} échec(s) API)."
+    )
+
+    # Le marqueur run-once n'est écrit qu'en cas de succès complet : si des appels
+    # API ont échoué, on sort en erreur pour qu'Ansible le signale et qu'un re-run
+    # reste possible (sinon args.creates figerait définitivement un seed incomplet).
+    if echecs > 0:
+        print(
+            f"ERREUR : {echecs} appel(s) API en échec — marqueur non écrit, "
+            "le remplissage devra être rejoué."
+        )
+        sys.exit(1)
+
+    os.makedirs(os.path.dirname(MARQUEUR), exist_ok=True)
+    with open(MARQUEUR, "w", encoding="utf-8") as marqueur:
+        marqueur.write(recap)
+
+
+if __name__ == "__main__":
+    main()

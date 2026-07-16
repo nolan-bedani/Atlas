@@ -1,0 +1,11 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — handlers
+# ══════════════════════════════════════════════
+
+# ─── Service de l'agent ───
+
+- name: Redémarrer zabbix-agent2
+  ansible.builtin.systemd_service:
+    name: zabbix-agent2
+    state: restarted

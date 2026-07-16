@@ -1,0 +1,58 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — script de sauvegarde GLPI et planification
+# ══════════════════════════════════════════════
+
+# ─── Arborescence Atlas ───
+- name: Créer les répertoires nécessaires aux sauvegardes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - /opt/atlas/scripts
+    - /var/log/atlas
+
+# Le chemin complet des dumps doit être traversable et lisible par atlsvc
+# (la collecte rsync depuis atlbkp01p s'authentifie avec ce compte).
+- name: Créer l'arborescence des dumps (lisible par atlsvc)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: atlsvc
+    mode: "0750"
+  loop:
+    - "{{ mariadb_backup_dir | dirname }}"
+    - "{{ mariadb_backup_dir }}"
+
+# ─── Script de dump ───
+- name: Déployer le script de sauvegarde dump_glpi.sh
+  ansible.builtin.template:
+    src: dump_glpi.sh.j2
+    dest: /opt/atlas/scripts/dump_glpi.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+# ─── Planification cron ───
+- name: Planifier le dump GLPI quotidien à 02h00
+  ansible.builtin.cron:
+    name: "Dump GLPI quotidien 02h00"
+    minute: "0"
+    hour: "2"
+    job: /opt/atlas/scripts/dump_glpi.sh
+    user: root
+
+# Dump RPO toutes les 15 min (objectif RPO <= 20 min ; un dump horaire laissait
+# jusqu'à 60 min de perte). Minutes décalées (5,20,35,50) pour ne jamais
+# chevaucher le dump de 02h00 ni la sauvegarde filestore de 03h00.
+- name: Planifier le dump GLPI toutes les 15 min (RPO)
+  ansible.builtin.cron:
+    name: "Dump GLPI RPO 15min"
+    minute: "5,20,35,50"
+    hour: "*"
+    job: /opt/atlas/scripts/dump_glpi.sh
+    user: root

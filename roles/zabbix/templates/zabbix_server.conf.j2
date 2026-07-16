@@ -1,0 +1,28 @@
+# ══════════════════════════════════════════════
+# Rôle : zabbix — configuration du serveur Zabbix
+# Fichier géré par Ansible — toute modification manuelle sera écrasée
+# ══════════════════════════════════════════════
+
+# ─── Journalisation ───
+LogFile=/var/log/zabbix/zabbix_server.log
+LogFileSize=10
+
+# ─── Processus et sockets ───
+PidFile=/run/zabbix/zabbix_server.pid
+SocketDir=/run/zabbix
+
+# ─── Connexion à la base de données (MariaDB distante sur atldb01p) ───
+DBHost={{ zabbix_db_host }}
+DBName=zabbix
+DBUser=zabbix
+DBPassword={{ vault_zabbix_db_password }}
+
+# ─── Réglages généraux ───
+Timeout=4
+SNMPTrapperFile=/var/log/snmptrap/snmptrap.log
+FpingLocation=/usr/bin/fping
+Fping6Location=/usr/bin/fping6
+
+# ─── Cache et statistiques ───
+CacheSize=32M
+StatsAllowedIP=127.0.0.1

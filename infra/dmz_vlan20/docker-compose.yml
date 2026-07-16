@@ -16,7 +16,11 @@
 
 services:
   nginx-proxy:
-    image: nginx:stable-alpine
+    # Image épinglée sur une version précise (pas de tag mouvant) pour garantir
+    # la reproductibilité d'une reconstruction PRA. Pour un verrouillage total,
+    # ajouter le digest :  nginx:1.26.3-alpine@sha256:<digest>
+    # (récupéré via `docker buildx imagetools inspect nginx:1.26.3-alpine`).
+    image: nginx:1.26.3-alpine
     container_name: nginx-proxy
 
     # -------------------------------------------------------------------------
@@ -78,9 +82,14 @@ services:
     # Healthcheck — disabled by default; uncomment once certs are in place.
     # Used by Docker to determine container health, and can be scraped by
     # Zabbix via HTTP checks on the /health endpoint.
+    #
+    # IMPORTANT : forme CMD-SHELL (un vrai shell interprète « || »), et wget de
+    # BusyBox (présent dans l'image alpine) — curl n'est PAS inclus dans
+    # nginx:*-alpine. Le certificat étant auto-signé, --no-check-certificate est
+    # nécessaire pour que le test ne tombe pas en échec sur la validation TLS.
     # -------------------------------------------------------------------------
     # healthcheck:
-    #   test: ["CMD", "curl", "-f", "https://localhost/health", "||", "exit", "1"]
+    #   test: ["CMD-SHELL", "wget -q --no-check-certificate -O /dev/null https://localhost/health || exit 1"]
     #   interval: 30s
     #   timeout: 10s
     #   retries: 3

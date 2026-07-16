@@ -1,0 +1,62 @@
+---
+# ══════════════════════════════════════════════
+# Inventaire Projet Atlas — PRA/DR Helpdesk
+# ══════════════════════════════════════════════
+all:
+  children:
+    # ─── Hôte Proxmox (control node / hyperviseur) ───
+    proxmox:
+      vars:
+        # L'API Proxmox (port 8006) présente un certificat auto-signé : la CA
+        # interne n'est pas dans le trust store du contrôleur. On désactive donc
+        # la vérification TLS pour CE nœud uniquement (le défaut du rôle reste
+        # true). Sans cela, proxmox_provision et pra_restore_full échouent sur
+        # « CERTIFICATE_VERIFY_FAILED ».
+        proxmox_validate_certs: false
+      hosts:
+        proxmox_node:
+          ansible_host: "138.201.135.108"
+          ansible_user: root
+          ansible_ssh_private_key_file: /root/.ssh/atlas_ed25519
+
+    # ─── VLAN 90 — Management (bastion) ───
+    mgmt:
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new'
+      hosts:
+        atlbst01p:
+          ansible_host: 10.90.0.10
+
+    # ─── VLAN 20 — DMZ (reverse proxy + GLPI) ───
+    # NB : ProxyCommand (et non ProxyJump) pour imposer la clé atlas_ed25519
+    # sur le saut via le bastion — ProxyJump n'hérite pas de private_key_file.
+    dmz:
+      vars:
+        ansible_ssh_common_args: >-
+          -o StrictHostKeyChecking=accept-new
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=accept-new -W %h:%p root@10.90.0.10"
+      hosts:
+        atlrp01p:
+          ansible_host: 10.20.0.10
+        atlapp01p:
+          ansible_host: 10.20.0.11
+        atltst01p:
+          ansible_host: 10.20.0.20
+
+    # ─── VLAN 30 — LAN ADMIN (BDD, SMTP, supervision, backup) ───
+    lan_admin:
+      vars:
+        ansible_ssh_common_args: >-
+          -o StrictHostKeyChecking=accept-new
+          -o ProxyCommand="ssh -i /root/.ssh/atlas_ed25519 -o StrictHostKeyChecking=accept-new -W %h:%p root@10.90.0.10"
+      hosts:
+        atldb01p:
+          ansible_host: 10.30.0.10
+        atlsmtp01p:
+          ansible_host: 10.30.0.11
+        atlzbx01p:
+          ansible_host: 10.30.0.12
+        atlbkp01p:
+          ansible_host: 10.30.0.13
+        atlgrf01p:
+          ansible_host: 10.30.0.14

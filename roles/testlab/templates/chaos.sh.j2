@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════
+# Atlas — chaos.sh : générateur d'incidents contrôlés
+# Déployé par Ansible (rôle testlab) — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════
+#
+# Usage :
+#   chaos.sh run                  → déclenche UN scénario aléatoire
+#   chaos.sh clean                → répare tout (état nominal)
+#   chaos.sh <cpu|disk|service>   → déclenche un scénario précis
+#
+# Tous les incidents sont RÉVERSIBLES et détectés par Zabbix.
+
+set -euo pipefail
+
+# ─── Constantes ───
+LOG_FILE="/var/log/atlas/chaos.log"
+DISK_FILE="/var/tmp/chaos_disk_fill"
+# Hôte de lab attendu : garde-fou de ciblage (cf. plus bas).
+EXPECTED_HOST="{{ testlab_expected_host }}"
+
+# ─── Garde-fou de ciblage ───
+# Ce script arrête nginx et remplit le disque : il ne doit JAMAIS s'exécuter
+# ailleurs que sur l'hôte de lab. Sans ce garde-fou, une erreur d'inventaire
+# (hosts trop large, --limit erroné) déclencherait des pannes réelles sur le
+# reverse proxy (atlrp01p) ou le frontend Zabbix (atlzbx01p).
+if [[ "$(hostname -s)" != "${EXPECTED_HOST}" ]]; then
+    echo "REFUS : chaos.sh ne doit s'exécuter que sur ${EXPECTED_HOST} (hôte courant : $(hostname -s))" >&2
+    exit 1
+fi
+
+# ─── Journalisation horodatée (console + fichier) ───
+# La journalisation est tolérante : un échec d'écriture du fichier (ex.
+# /var/log/atlas absent) ne doit jamais interrompre une réparation. On
+# neutralise l'échec du pipeline (sinon « set -o pipefail » quitterait avant
+# la capture de PIPESTATUS) puis on émet un avertissement sur stderr.
+log() {
+    local rc=0
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}" || rc=$?
+    if [[ "${rc}" -ne 0 ]]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] AVERTISSEMENT : écriture du journal en échec (rc=${rc})" >&2
+    fi
+}
+
+# ─── Scénario cpu : saturation CPU temporaire ───
+# Le timeout garantit l'arrêt automatique même sans réparation.
+incident_cpu() {
+    log "INCIDENT DÉCLENCHÉ : cpu ({{ testlab_cpu_workers }} workers stress-ng, durée {{ testlab_cpu_duration }})"
+    timeout {{ testlab_cpu_duration }} stress-ng --cpu {{ testlab_cpu_workers }} --quiet &
+    disown
+}
+
+# ─── Scénario disk : remplissage contrôlé du disque ───
+# Fichier unique : pas de doublon si l'incident est déjà actif.
+incident_disk() {
+    if [[ -f "${DISK_FILE}" ]]; then
+        log "INCIDENT disk déjà actif : ${DISK_FILE} présent, aucun doublon créé"
+    else
+        fallocate -l {{ testlab_disk_fill_mb }}M "${DISK_FILE}"
+        log "INCIDENT DÉCLENCHÉ : disk ({{ testlab_disk_fill_mb }} Mo alloués dans ${DISK_FILE})"
+    fi
+}
+
+# ─── Scénario service : arrêt du service nginx ───
+incident_service() {
+    systemctl stop nginx
+    log "INCIDENT DÉCLENCHÉ : service (nginx arrêté)"
+}
+
+# ─── Réparation : retour à l'état nominal ───
+reparer() {
+    rm -f "${DISK_FILE}"
+    systemctl start nginx
+    pkill -f stress-ng || true
+    log "RÉPARATION effectuée : fichier disque supprimé, nginx démarré, stress-ng arrêté"
+}
+
+# ─── Point d'entrée ───
+case "${1:-}" in
+    run)
+        # Choix aléatoire d'un scénario parmi les trois
+        SCENARIOS=(cpu disk service)
+        CHOIX=${SCENARIOS[$((RANDOM % 3))]}
+        log "Scénario aléatoire sélectionné : ${CHOIX}"
+        "incident_${CHOIX}"
+        ;;
+    cpu)
+        incident_cpu
+        ;;
+    disk)
+        incident_disk
+        ;;
+    service)
+        incident_service
+        ;;
+    clean)
+        reparer
+        ;;
+    *)
+        echo "Usage : $0 {run|clean|cpu|disk|service}" >&2
+        exit 1
+        ;;
+esac

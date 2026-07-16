@@ -1,0 +1,50 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — configuration de nginx
+# ══════════════════════════════════════════════
+
+# ─── Configuration principale de nginx ───
+
+- name: Déployer la configuration principale nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx
+
+# ─── Hôte virtuel GLPI (proxy HTTPS) ───
+
+- name: Déployer le vhost de publication GLPI
+  ansible.builtin.template:
+    src: vhost_glpi.conf.j2
+    dest: /etc/nginx/sites-available/glpi-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx
+
+- name: Activer le vhost GLPI (lien symbolique)
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/glpi-proxy.conf
+    dest: /etc/nginx/sites-enabled/glpi-proxy.conf
+    state: link
+  notify: Recharger nginx
+
+- name: Désactiver le site par défaut de nginx
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger nginx
+
+# ─── Ouverture du pare-feu UFW ───
+
+- name: Autoriser les flux HTTP et HTTPS entrants
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "80"
+    - "443"

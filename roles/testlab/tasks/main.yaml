@@ -1,0 +1,20 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : testlab — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+# Garde-fou : le rôle testlab déploie un générateur d'incidents destructeurs
+# (arrêt de nginx, remplissage disque). Il ne doit être appliqué qu'à l'hôte
+# de lab, jamais à un hôte de production (reverse proxy, frontend Zabbix...).
+- name: "Refuser l'application du rôle testlab hors de l'hôte de lab"
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == testlab_expected_host
+    fail_msg: >-
+      Le rôle testlab ne peut s'appliquer qu'à {{ testlab_expected_host }}
+      (hôte ciblé : {{ inventory_hostname }}). Vérifier l'inventaire / --limit.
+    quiet: true
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: scripts.yaml
+- ansible.builtin.import_tasks: cron.yaml

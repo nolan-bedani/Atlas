@@ -1,0 +1,95 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — frontend web (nginx + php-fpm)
+# ══════════════════════════════════════════════
+
+# ─── Certificat TLS du frontend (HTTPS obligatoire) ───
+
+- name: Préparer le certificat TLS du frontend Zabbix
+  ansible.builtin.import_tasks: tls.yaml
+  when: zabbix_frontend_tls_enabled
+
+# ─── Configuration nginx du frontend ───
+
+- name: Déployer la configuration nginx du frontend Zabbix
+  ansible.builtin.template:
+    src: zabbix_nginx.conf.j2
+    dest: /etc/zabbix/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx (zabbix)
+
+- name: Activer l'inclusion de la configuration Zabbix dans nginx
+  ansible.builtin.file:
+    src: /etc/zabbix/nginx.conf
+    dest: /etc/nginx/conf.d/zabbix.conf
+    state: link
+    force: true
+  notify: Recharger nginx (zabbix)
+
+- name: Supprimer le site nginx par défaut
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger nginx (zabbix)
+
+# ─── Configuration applicative du frontend (équivaut à l'assistant web) ───
+
+- name: Déployer la configuration du frontend Zabbix (zabbix.conf.php)
+  ansible.builtin.template:
+    src: zabbix.conf.php.j2
+    dest: /etc/zabbix/web/zabbix.conf.php
+    owner: www-data
+    group: www-data
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer php-fpm (zabbix)
+
+# ─── Réglages PHP du frontend ───
+
+- name: Déployer les réglages PHP requis par le frontend Zabbix
+  ansible.builtin.template:
+    src: 99-zabbix-php.ini.j2
+    dest: /etc/php/8.2/fpm/conf.d/99-zabbix.ini
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Redémarrer php-fpm (zabbix)
+
+# ─── Pare-feu UFW ───
+# En HTTPS, le port en clair est lié à la boucle locale (API interne) : seul le
+# port TLS est exposé au réseau. Sinon (TLS désactivé), on ouvre le port en clair.
+
+- name: Autoriser l'accès HTTPS au frontend Zabbix (port {{ zabbix_frontend_tls_port }})
+  community.general.ufw:
+    rule: allow
+    port: "{{ zabbix_frontend_tls_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.30.0.0/24
+    - 10.90.0.0/24
+  when: zabbix_frontend_tls_enabled
+
+- name: Autoriser l'accès HTTP au frontend Zabbix (port {{ zabbix_frontend_port }})
+  community.general.ufw:
+    rule: allow
+    port: "{{ zabbix_frontend_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.30.0.0/24
+    - 10.90.0.0/24
+  when: not zabbix_frontend_tls_enabled
+
+- name: Autoriser le trapper Zabbix (port 10051)
+  community.general.ufw:
+    rule: allow
+    port: "10051"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop:
+    - 10.20.0.0/24
+    - 10.30.0.0/24
+    - 10.90.0.0/24

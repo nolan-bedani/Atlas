@@ -1,0 +1,6 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — handlers
+# ══════════════════════════════════════════════════════════════════════
+
+# aucun handler — les sauvegardes sont déclenchées par cron, sans service à recharger

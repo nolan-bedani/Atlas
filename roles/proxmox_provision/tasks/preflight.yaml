@@ -1,0 +1,63 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — vérifications préalables
+# ══════════════════════════════════════════════
+
+# ─── Vérification du template LXC sur le storage local ───
+
+- name: Lister le contenu du storage local
+  ansible.builtin.command: >-
+    pvesh get /nodes/{{ ansible_hostname }}/storage/local/content
+    --output-format json
+  register: proxmox_provision_storage_content
+  changed_when: false
+
+- name: Vérifier la présence du template Debian 12
+  ansible.builtin.assert:
+    that:
+      - "'debian-12-standard_12.12-1_amd64.tar.zst' in proxmox_provision_storage_content.stdout"
+    fail_msg: >-
+      Le template LXC debian-12-standard_12.12-1_amd64.tar.zst est introuvable
+      sur le storage local du noeud {{ ansible_hostname }}.
+      Téléchargez-le avant de relancer le provisionnement.
+    success_msg: "Template LXC Debian 12 présent sur le storage local."
+
+- name: Afficher le contenu du storage local (debug)
+  ansible.builtin.debug:
+    var: proxmox_provision_storage_content.stdout
+  when: proxmox_provision_debug
+
+# ─── Vérification de la disponibilité des VMIDs ───
+
+- name: Lister les ressources VM/CT du cluster
+  ansible.builtin.command: >-
+    pvesh get /cluster/resources --type vm --output-format json
+  register: proxmox_provision_cluster_resources
+  changed_when: false
+
+# Un VMID déjà présent n'est PAS un conflit s'il porte le hostname attendu
+# (idempotence : re-exécution ou ajout incrémental de conteneurs).
+# Seul un VMID occupé par une AUTRE machine constitue un conflit réel.
+- name: Identifier les conflits de VMID réels
+  ansible.builtin.set_fact:
+    proxmox_provision_vmid_conflicts: >-
+      {{ proxmox_provision_cluster_resources.stdout | from_json
+      | selectattr('vmid', 'in', proxmox_containers | map(attribute='vmid') | list)
+      | rejectattr('name', 'in', proxmox_containers | map(attribute='hostname') | list)
+      | map(attribute='vmid') | list }}
+
+- name: Vérifier l'absence de conflit de VMID
+  ansible.builtin.assert:
+    that:
+      - proxmox_provision_vmid_conflicts | length == 0
+    fail_msg: >-
+      Conflit de VMID détecté : les identifiants
+      {{ proxmox_provision_vmid_conflicts }} sont déjà utilisés par des
+      machines étrangères au projet Atlas. Libérez ces VMIDs ou modifiez
+      la variable proxmox_containers.
+    success_msg: "Aucun conflit de VMID — conteneurs absents ou déjà Atlas (idempotent)."
+
+- name: Afficher les ressources du cluster (debug)
+  ansible.builtin.debug:
+    var: proxmox_provision_cluster_resources.stdout
+  when: proxmox_provision_debug

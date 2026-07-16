@@ -1,0 +1,9 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : proxmox_provision — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: preflight.yaml
+- ansible.builtin.import_tasks: create_lxc.yaml
+- ansible.builtin.import_tasks: start_lxc.yaml
+- ansible.builtin.import_tasks: wait_ssh.yaml

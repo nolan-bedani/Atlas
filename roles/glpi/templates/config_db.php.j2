@@ -1,0 +1,16 @@
+<?php
+// ══════════════════════════════════════════════
+// Rôle : glpi — connexion à la base de données (secrets via Vault)
+// Fichier géré par Ansible — NE PAS MODIFIER À LA MAIN
+// ══════════════════════════════════════════════
+
+class DB extends DBmysql {
+   public $dbhost = '{{ vault_glpi_db_host }}';
+   public $dbuser = '{{ vault_glpi_db_user }}';
+   public $dbpassword = '{{ vault_glpi_db_password }}';
+   public $dbdefault = '{{ vault_glpi_db_name }}';
+   public $use_utf8mb4 = true;
+   public $allow_myisam = false;
+   public $allow_datetime = false;
+   public $allow_signed_keys = false;
+}

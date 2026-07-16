@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════════════════════════════
+# collect_dumps.sh — Collecte des dumps MariaDB depuis atldb01p
+# Géré par Ansible (rôle backup) — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════════════════════════════
+set -euo pipefail
+
+# ─── Paramètres ───
+LOG_FILE="{{ backup_log_dir }}/collect_dumps.log"
+SOURCE="{{ backup_remote_user }}@{{ backup_db_host }}:{{ backup_db_dumps_dir }}/"
+DEST="{{ backup_db_remote_dest }}/"
+BINLOG_SOURCE="{{ backup_remote_user }}@{{ backup_db_host }}:{{ backup_db_binlog_dir }}/"
+BINLOG_DEST="{{ backup_db_remote_dest }}/binlogs/"
+SSH_OPTS="ssh -i {{ backup_ssh_key_path }} -o StrictHostKeyChecking=accept-new"
+RETENTION_JOURS={{ backup_retention_days }}
+
+# ─── Journalisation horodatée ───
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "${LOG_FILE}"
+}
+
+# En cas d'échec, journaliser avant de sortir avec un code non nul
+# (le code retour non nul est remonté par cron et supervisé par Zabbix)
+trap 'log "ÉCHEC : la collecte des dumps a échoué (code ${?})"' ERR
+
+# ─── Début ───
+debut_epoch=$(date +%s)
+log "DÉBUT collecte des dumps MariaDB : ${SOURCE} -> ${DEST}"
+
+# ─── Synchronisation rsync (sans --delete : la rotation est gérée localement) ───
+rsync -avz -e "${SSH_OPTS}" "${SOURCE}" "${DEST}" >> "${LOG_FILE}" 2>&1
+
+# ─── Collecte des binlogs MariaDB (PITR — RPO <= 20 min) ───
+# On ne récupère que les journaux binaires + leur index, pas tout /var/log/mysql.
+mkdir -p "${BINLOG_DEST}"
+log "Collecte des binlogs : ${BINLOG_SOURCE} -> ${BINLOG_DEST}"
+rsync -avz -e "${SSH_OPTS}" \
+  --include='mysql-bin.*' --include='*.index' --exclude='*' \
+  "${BINLOG_SOURCE}" "${BINLOG_DEST}" >> "${LOG_FILE}" 2>&1
+
+# ─── Rotation : suppression des dumps plus vieux que la rétention ───
+log "Rotation : suppression des fichiers de plus de ${RETENTION_JOURS} jours"
+find "${DEST}" -type f -mtime +"${RETENTION_JOURS}" -delete
+
+# ─── Fin : nombre de fichiers, durée et taille totale ───
+fin_epoch=$(date +%s)
+duree=$((fin_epoch - debut_epoch))
+nb_fichiers=$(find "${DEST}" -type f | wc -l)
+taille=$(du -sh "${DEST}" | awk '{print $1}')
+log "FIN collecte des dumps — durée : ${duree}s — fichiers conservés : ${nb_fichiers} — taille totale : ${taille}"
+
+exit 0

@@ -1,0 +1,41 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — service et vérification
+# ══════════════════════════════════════════════
+
+# ─── Service Postfix ───
+- name: Activer et démarrer le service postfix
+  ansible.builtin.service:
+    name: postfix
+    enabled: true
+    state: started
+
+# ─── Application immédiate des notifications en attente ───
+- name: Forcer l'exécution des handlers en attente
+  ansible.builtin.meta: flush_handlers
+
+# ─── Vérification fonctionnelle (passive, idempotente) ───
+# Par défaut on se contente de vérifier que Postfix écoute sur le port 25 :
+# aucun effet de bord, rejouable à chaque run.
+- name: Vérifier que Postfix écoute sur le port 25
+  ansible.builtin.wait_for:
+    host: "{{ smtp_listen_ip }}"
+    port: 25
+    timeout: 10
+
+# L'envoi réel d'un courriel de test reste possible mais explicite : il n'est
+# déclenché que si smtp_send_test vaut true (ex. validation manuelle), afin de
+# ne pas polluer la boîte root à chaque (re)déploiement.
+- name: Envoyer un courriel de test à root
+  ansible.builtin.shell: echo "Test Atlas" | mail -s "Test SMTP Atlas" root
+  changed_when: true
+  when: smtp_send_test | default(false) | bool
+
+# ─── Debug ───
+- name: Afficher les variables du rôle smtp
+  ansible.builtin.debug:
+    msg:
+      - "Nom d'hôte SMTP   : {{ smtp_hostname }}"
+      - "Adresse d'écoute  : {{ smtp_listen_ip }}"
+      - "Relais sortant    : {{ smtp_relayhost | default('(aucun)', true) }}"
+  when: smtp_debug

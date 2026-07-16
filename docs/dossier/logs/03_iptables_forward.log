@@ -1,0 +1,18 @@
+-P FORWARD DROP
+-A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.20.0.0/24 -o enp0s31f6 -j ACCEPT
+-A FORWARD -d 10.20.0.0/24 -i enp0s31f6 -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.30.0.0/24 -o enp0s31f6 -j ACCEPT
+-A FORWARD -d 10.30.0.0/24 -i enp0s31f6 -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.90.0.0/24 -o enp0s31f6 -j ACCEPT
+-A FORWARD -d 10.90.0.0/24 -i enp0s31f6 -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.20.0.0/24 -d 10.30.0.10/32 -p tcp -m multiport --dports 3306 -j ACCEPT
+-A FORWARD -s 10.20.0.0/24 -d 10.30.0.11/32 -p tcp -m multiport --dports 25 -j ACCEPT
+-A FORWARD -s 10.20.0.0/24 -d 10.30.0.12/32 -p tcp -m multiport --dports 10051 -j ACCEPT
+-A FORWARD -s 10.30.0.12/32 -d 10.20.0.0/24 -p tcp -m multiport --dports 10050 -j ACCEPT
+-A FORWARD -s 10.90.0.0/24 -d 10.20.0.0/24 -p tcp -m multiport --dports 22 -j ACCEPT
+-A FORWARD -s 10.90.0.0/24 -d 10.30.0.0/24 -p tcp -m multiport --dports 22 -j ACCEPT
+-A FORWARD -s 10.10.10.0/24 -o enp0s31f6 -j ACCEPT
+-A FORWARD -d 10.10.10.0/24 -i enp0s31f6 -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -s 10.30.0.12/32 -d 10.90.0.10/32 -p tcp -m multiport --dports 10050 -j ACCEPT
+-A FORWARD -s 10.90.0.10/32 -d 10.30.0.12/32 -p tcp -m multiport --dports 10051 -j ACCEPT

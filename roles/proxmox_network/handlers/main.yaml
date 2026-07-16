@@ -1,0 +1,17 @@
+---
+# ══════════════════════════════════════════════
+# proxmox_network — Handlers
+# ══════════════════════════════════════════════
+
+# Pré-validation de la syntaxe AVANT rechargement (évite de couper le réseau de
+# l'hyperviseur distant sur une config invalide). Le rollback automatique en cas
+# de perte d'accès est géré par le runbook d'application (scripts/apply_network_safe.sh).
+- name: Recharger la configuration réseau
+  ansible.builtin.shell:
+    cmd: ifquery -a >/dev/null && ifreload -a
+  changed_when: true
+
+- name: Recharger les règles iptables
+  ansible.builtin.shell:
+    cmd: iptables-restore --test /etc/iptables/rules.v4 && iptables-restore /etc/iptables/rules.v4
+  changed_when: true

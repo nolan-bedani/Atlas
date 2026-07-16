@@ -1,0 +1,31 @@
+---
+# ══════════════════════════════════════════════
+# Variables globales Projet Atlas (non secrètes)
+# ══════════════════════════════════════════════
+
+# ─── Projet ───
+atlas_project_name: "Atlas PRA/DR Helpdesk"
+atlas_domain: "atlas.local"
+atlas_timezone: "Europe/Paris"
+atlas_dns_servers:
+  - "1.1.1.1"
+  - "9.9.9.9"
+
+# ─── Objectifs PRA ───
+atlas_rpo_minutes: 20
+atlas_rto_minutes: 40
+
+# ─── Plages IP ───
+atlas_subnet_dmz: "10.20.0.0/24"
+atlas_subnet_lan_admin: "10.30.0.0/24"
+atlas_subnet_mgmt: "10.90.0.0/24"
+
+# ─── Versions applicatives ───
+atlas_glpi_version: "10.0.16"
+atlas_zabbix_version: "7.0"
+
+# ─── Connexion SSH ───
+# Premier déploiement : les LXC fraîchement provisionnés ne possèdent que
+# le compte root (clé atlas_ed25519 injectée à la création). On force donc
+# root ici — le compte de service atlsvc (sudo limité) sert à l'exploitation.
+ansible_user: root

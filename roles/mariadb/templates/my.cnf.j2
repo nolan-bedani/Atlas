@@ -1,0 +1,8 @@
+# ══════════════════════════════════════════════
+# Rôle : mariadb — authentification client root
+# Fichier géré par Ansible — ne pas modifier manuellement
+# ══════════════════════════════════════════════
+
+[client]
+user = root
+password = {{ vault_mariadb_root_password }}

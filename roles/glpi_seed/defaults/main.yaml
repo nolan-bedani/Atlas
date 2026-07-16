@@ -1,0 +1,22 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi_seed — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── URL de l'API REST de GLPI (exécution locale sur atlapp01p) ───
+glpi_seed_api_url: "http://127.0.0.1/apirest.php"
+
+# ─── Durcissement des comptes (CLAUDE.md : aucun compte admin par défaut) ───
+# Le super-admin par défaut « glpi » est renommé et reçoit un mot de passe fort
+# (vault_glpi_admin_password). Les comptes de démo sont désactivés.
+glpi_admin_username: "atlasadmin"
+glpi_default_disabled_accounts:
+  - "tech"
+  - "normal"
+  - "post-only"
+
+# ─── Nombre de tickets de démonstration à créer ───
+glpi_seed_ticket_count: 25
+
+# ─── Mode debug ───
+glpi_seed_debug: false

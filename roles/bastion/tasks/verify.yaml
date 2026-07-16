@@ -1,0 +1,16 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — vérification de la joignabilité SSH
+# ══════════════════════════════════════════════
+
+# ─── Vérification des ports SSH depuis le bastion ───
+
+# Le rôle s'exécute déjà sur atlbst01p : pas besoin de delegate_to
+- name: Vérifier que le port 22 de chaque conteneur Atlas est joignable
+  ansible.builtin.wait_for:
+    host: "{{ item.ip }}"
+    port: 22
+    timeout: 30
+  loop: "{{ bastion_atlas_hosts }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.ip }})"

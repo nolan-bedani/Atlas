@@ -1,0 +1,53 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — installation de PHP 8.2 (dépôt sury.org)
+# ══════════════════════════════════════════════
+
+# ─── Prérequis pour le dépôt HTTPS ───
+
+- name: Installer apt-transport-https
+  ansible.builtin.apt:
+    name: apt-transport-https
+    state: present
+
+- name: Créer le répertoire des clés APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ─── Dépôt sury.org pour Debian 12 (bookworm) ───
+
+- name: Télécharger la clé GPG du dépôt sury.org
+  ansible.builtin.get_url:
+    url: https://packages.sury.org/php/apt.gpg
+    dest: /etc/apt/keyrings/sury-php.gpg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ajouter le dépôt APT sury.org (PHP)
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/sury-php.gpg] https://packages.sury.org/php/ bookworm main"
+    filename: sury-php
+    state: present
+    update_cache: true
+
+# ─── Installation de PHP 8.2 et des extensions GLPI ───
+
+- name: Installer PHP 8.2 FPM et les extensions requises par GLPI
+  ansible.builtin.apt:
+    name:
+      - php8.2-fpm
+      - php8.2-mysql
+      - php8.2-curl
+      - php8.2-gd
+      - php8.2-intl
+      - php8.2-mbstring
+      - php8.2-xml
+      - php8.2-zip
+      - php8.2-bz2
+      - php8.2-opcache
+    state: present

@@ -1,0 +1,29 @@
+# ══════════════════════════════════════════════
+# Rôle : common — configuration sshd durcie
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Drop-in (DOIT précéder les directives pour autoriser la surcharge bastion) ───
+Include /etc/ssh/sshd_config.d/*.conf
+
+# ─── Réseau ───
+Port 22
+
+# ─── Authentification ───
+{# 'prohibit-password' PARTOUT (bastion compris) : autorise la clé SSH et
+   interdit le mot de passe. Ansible se connecte par clé, donc l'accès root
+   par clé via le bastion est préservé. 'yes' sur le bastion était inutile et
+   plus faible (point d'entrée le plus exposé). #}
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 3
+UsePAM yes
+
+# ─── Durcissement ───
+X11Forwarding no
+# AllowTcpForwarding doit rester actif : nécessaire pour le ProxyJump via le bastion
+AllowTcpForwarding yes
+
+# ─── Sous-systèmes ───
+Subsystem sftp /usr/lib/openssh/sftp-server

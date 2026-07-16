@@ -1,0 +1,16 @@
+; ══════════════════════════════════════════════
+; Rôle : zabbix — réglages PHP requis par le frontend Zabbix
+; Fichier géré par Ansible — toute modification manuelle sera écrasée
+; ══════════════════════════════════════════════
+
+; ─── Limites d'exécution ───
+max_execution_time = 300
+max_input_time = 300
+memory_limit = 128M
+
+; ─── Téléversements ───
+post_max_size = 16M
+upload_max_filesize = 2M
+
+; ─── Fuseau horaire ───
+date.timezone = Europe/Paris

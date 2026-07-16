@@ -1,0 +1,34 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : bastion — configuration et durcissement
+# ══════════════════════════════════════════════
+
+# ─── Bannière SSH ───
+
+- name: Déployer la bannière d'avertissement SSH
+  ansible.builtin.template:
+    src: banner.j2
+    dest: /etc/ssh/banner
+    owner: root
+    group: root
+    mode: "0644"
+
+# ─── Durcissement sshd spécifique au bastion ───
+
+- name: Déployer la configuration sshd dédiée au bastion
+  ansible.builtin.template:
+    src: sshd_bastion.conf.j2
+    dest: /etc/ssh/sshd_config.d/90-atlas-bastion.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Redémarrer sshd (bastion)
+
+# ─── Pare-feu UFW ───
+
+- name: Autoriser SSH (22/tcp) depuis le sous-réseau d'administration
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    from_ip: "{{ bastion_allowed_subnet }}"

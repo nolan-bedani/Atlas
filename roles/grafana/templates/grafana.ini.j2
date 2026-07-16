@@ -1,0 +1,24 @@
+# ══════════════════════════════════════════════
+# Rôle : grafana — configuration principale
+# Fichier géré par Ansible — toute modification manuelle sera écrasée
+# ══════════════════════════════════════════════
+
+# ─── Serveur HTTP ───
+[server]
+http_addr = 0.0.0.0
+http_port = {{ grafana_port }}
+domain = atlgrf01p.atlas.local
+
+# ─── Sécurité ───
+[security]
+admin_user = admin
+admin_password = {{ vault_grafana_admin_password }}
+
+# ─── Utilisateurs ───
+[users]
+allow_sign_up = false
+
+# ─── Télémétrie désactivée ───
+[analytics]
+reporting_enabled = false
+check_for_updates = false

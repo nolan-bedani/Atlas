@@ -1,0 +1,79 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — bases de données et utilisateurs GLPI
+# ══════════════════════════════════════════════
+
+# ─── Base de données glpi_db ───
+- name: Vérifier l'existence de la base glpi_db
+  ansible.builtin.command: mysql -N -B -e "SHOW DATABASES LIKE 'glpi_db';"
+  register: mariadb_base_glpi
+  changed_when: false
+
+- name: Créer la base glpi_db (utf8mb4)
+  ansible.builtin.command: >
+    mysql -e "CREATE DATABASE IF NOT EXISTS glpi_db
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  when: mariadb_base_glpi.stdout | trim | length == 0
+  changed_when: true
+
+# ─── Utilisateur GLPI (application atlapp01p) ───
+- name: Vérifier l'existence de l'utilisateur glpi_user@10.20.0.11
+  ansible.builtin.command: mysql -N -B -e "SELECT COUNT(*) FROM mysql.global_priv WHERE User='glpi_user' AND Host='10.20.0.11';"
+  register: mariadb_user_app
+  changed_when: false
+
+- name: Créer l'utilisateur glpi_user@10.20.0.11 (GLPI)
+  ansible.builtin.shell: >
+    mysql -e "CREATE USER IF NOT EXISTS 'glpi_user'@'10.20.0.11'
+    IDENTIFIED BY '{{ vault_glpi_db_password }}';"
+  when: (mariadb_user_app.stdout | trim | int) == 0
+  changed_when: true
+  no_log: true
+
+- name: Lister les privilèges de glpi_user@10.20.0.11
+  ansible.builtin.command: mysql -N -B -e "SHOW GRANTS FOR 'glpi_user'@'10.20.0.11';"
+  register: mariadb_grants_app
+  changed_when: false
+  no_log: true
+
+# Moindre privilège : on n'accorde que les droits requis par GLPI en exploitation
+# (DDL CREATE/ALTER/INDEX/REFERENCES inclus pour les migrations applicatives),
+# sans DROP ni GRANT OPTION. Une compromission de l'app ne peut plus détruire la base.
+- name: Accorder les privilèges applicatifs sur glpi_db à glpi_user@10.20.0.11
+  ansible.builtin.command: >
+    mysql -e "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX,
+    LOCK TABLES, REFERENCES ON glpi_db.* TO 'glpi_user'@'10.20.0.11';"
+  when: "'INSERT' not in mariadb_grants_app.stdout"
+  changed_when: true
+  no_log: true
+
+# ─── Utilisateur GLPI (supervision Zabbix atlzbx01p) ───
+- name: Vérifier l'existence de l'utilisateur glpi_user@10.30.0.12
+  ansible.builtin.command: mysql -N -B -e "SELECT COUNT(*) FROM mysql.global_priv WHERE User='glpi_user' AND Host='10.30.0.12';"
+  register: mariadb_user_zbx
+  changed_when: false
+
+- name: Créer l'utilisateur glpi_user@10.30.0.12 (checks Zabbix)
+  ansible.builtin.shell: >
+    mysql -e "CREATE USER IF NOT EXISTS 'glpi_user'@'10.30.0.12'
+    IDENTIFIED BY '{{ vault_glpi_db_password }}';"
+  when: (mariadb_user_zbx.stdout | trim | int) == 0
+  changed_when: true
+  no_log: true
+
+- name: Lister les privilèges de glpi_user@10.30.0.12
+  ansible.builtin.command: mysql -N -B -e "SHOW GRANTS FOR 'glpi_user'@'10.30.0.12';"
+  register: mariadb_grants_zbx
+  changed_when: false
+  no_log: true
+
+- name: Accorder le privilège SELECT sur glpi_db à glpi_user@10.30.0.12
+  ansible.builtin.command: mysql -e "GRANT SELECT ON glpi_db.* TO 'glpi_user'@'10.30.0.12';"
+  when: "'SELECT ON `glpi_db`' not in mariadb_grants_zbx.stdout"
+  changed_when: true
+  no_log: true
+
+# ─── Rechargement des privilèges ───
+- name: Recharger la table des privilèges
+  ansible.builtin.command: mysql -e "FLUSH PRIVILEGES;"
+  changed_when: false

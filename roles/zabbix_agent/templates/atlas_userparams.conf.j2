@@ -1,0 +1,8 @@
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — UserParameters Atlas
+# Fichier géré par Ansible — toute modification manuelle sera écrasée
+# ══════════════════════════════════════════════
+
+# ─── Supervision HTTP du portail GLPI ───
+# Retourne le code HTTP du portail GLPI (000 si injoignable)
+UserParameter=atlas.glpi.http,curl -s -o /dev/null -w "%{http_code}" http://{{ zabbix_agent_glpi_url | default('10.20.0.11') }}/ || echo 000

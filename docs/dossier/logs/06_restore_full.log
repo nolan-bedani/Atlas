@@ -1,0 +1,1033 @@
+[WARNING]: Collection ansible.posix does not support Ansible version 2.14.18
+[WARNING]: Collection community.crypto does not support Ansible version 2.14.18
+
+PLAY [PRA — Horodatage de début] ***********************************************
+
+TASK [Enregistrer l'horodatage de début (epoch)] *******************************
+ok: [proxmox_node]
+
+TASK [Créer le répertoire de journalisation PRA] *******************************
+ok: [proxmox_node]
+
+TASK [Journaliser le début de la restauration complète] ************************
+changed: [proxmox_node]
+
+PLAY [PRA — Reprovisioning des LXC] ********************************************
+
+TASK [proxmox_provision : Lister le contenu du storage local] ******************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Vérifier la présence du template Debian 12] **********
+ok: [proxmox_node] => changed=false 
+  msg: Template LXC Debian 12 présent sur le storage local.
+
+TASK [proxmox_provision : Afficher le contenu du storage local (debug)] ********
+skipping: [proxmox_node]
+
+TASK [proxmox_provision : Lister les ressources VM/CT du cluster] **************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Identifier les conflits de VMID réels] ***************
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Vérifier l'absence de conflit de VMID] ***************
+ok: [proxmox_node] => changed=false 
+  msg: Aucun conflit de VMID — conteneurs absents ou déjà Atlas (idempotent).
+
+TASK [proxmox_provision : Afficher les ressources du cluster (debug)] **********
+skipping: [proxmox_node]
+
+TASK [proxmox_provision : Créer chaque conteneur LXC du projet Atlas] **********
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlbst01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlrp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlapp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atldb01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlsmtp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlzbx01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlbkp01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atlgrf01p)
+included: /root/Atlas/roles/proxmox_provision/tasks/create_lxc_item.yaml for proxmox_node => (item=atltst01p)
+
+TASK [proxmox_provision : Créer le conteneur LXC atlbst01p (VMID 200)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlrp01p (VMID 201)] **********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlapp01p (VMID 202)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atldb01p (VMID 203)] **********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlsmtp01p (VMID 204)] ********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlzbx01p (VMID 205)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlbkp01p (VMID 206)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atlgrf01p (VMID 207)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Créer le conteneur LXC atltst01p (VMID 208)] *********
+ok: [proxmox_node]
+
+TASK [proxmox_provision : Démarrer les conteneurs LXC du projet Atlas] *********
+ok: [proxmox_node] => (item=atlbst01p)
+ok: [proxmox_node] => (item=atlrp01p)
+ok: [proxmox_node] => (item=atlapp01p)
+ok: [proxmox_node] => (item=atldb01p)
+ok: [proxmox_node] => (item=atlsmtp01p)
+ok: [proxmox_node] => (item=atlzbx01p)
+ok: [proxmox_node] => (item=atlbkp01p)
+ok: [proxmox_node] => (item=atlgrf01p)
+ok: [proxmox_node] => (item=atltst01p)
+
+TASK [proxmox_provision : Attendre que le port SSH soit joignable sur chaque conteneur] ***
+ok: [proxmox_node] => (item=atlbst01p)
+ok: [proxmox_node] => (item=atlrp01p)
+ok: [proxmox_node] => (item=atlapp01p)
+ok: [proxmox_node] => (item=atldb01p)
+ok: [proxmox_node] => (item=atlsmtp01p)
+ok: [proxmox_node] => (item=atlzbx01p)
+ok: [proxmox_node] => (item=atlbkp01p)
+ok: [proxmox_node] => (item=atlgrf01p)
+ok: [proxmox_node] => (item=atltst01p)
+
+PLAY [PRA — Configuration de base (common)] ************************************
+
+TASK [common : Mettre à jour le cache APT et appliquer les mises à jour de sécurité] ***
+ok: [atlbst01p]
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Installer les paquets de base] **********************************
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Supprimer les paquets obsolètes et non sécurisés] ***************
+ok: [atlrp01p]
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Déployer la configuration sshd durcie] **************************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Définir la politique UFW par défaut en entrée (deny)] ***********
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Définir la politique UFW par défaut en sortie (allow)] **********
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlsmtp01p]
+ok: [atlbkp01p]
+ok: [atlzbx01p]
+ok: [atlgrf01p]
+
+TASK [common : Autoriser SSH (22/tcp) depuis les sources d'administration] *****
+ok: [atlrp01p] => (item=10.90.0.0/24)
+ok: [atltst01p] => (item=10.90.0.0/24)
+ok: [atldb01p] => (item=10.90.0.0/24)
+ok: [atlbst01p] => (item=10.90.0.0/24)
+ok: [atlapp01p] => (item=10.90.0.0/24)
+ok: [atlrp01p] => (item=10.20.0.1)
+ok: [atltst01p] => (item=10.20.0.1)
+ok: [atldb01p] => (item=10.20.0.1)
+ok: [atlbst01p] => (item=10.20.0.1)
+ok: [atlapp01p] => (item=10.20.0.1)
+ok: [atltst01p] => (item=10.30.0.1)
+ok: [atlrp01p] => (item=10.30.0.1)
+ok: [atldb01p] => (item=10.30.0.1)
+ok: [atlbst01p] => (item=10.30.0.1)
+ok: [atlapp01p] => (item=10.30.0.1)
+ok: [atlsmtp01p] => (item=10.90.0.0/24)
+ok: [atlzbx01p] => (item=10.90.0.0/24)
+ok: [atlbkp01p] => (item=10.90.0.0/24)
+ok: [atlzbx01p] => (item=10.20.0.1)
+ok: [atlbkp01p] => (item=10.20.0.1)
+ok: [atlgrf01p] => (item=10.90.0.0/24)
+ok: [atlsmtp01p] => (item=10.20.0.1)
+ok: [atlzbx01p] => (item=10.30.0.1)
+ok: [atlbkp01p] => (item=10.30.0.1)
+ok: [atlgrf01p] => (item=10.20.0.1)
+ok: [atlsmtp01p] => (item=10.30.0.1)
+ok: [atlgrf01p] => (item=10.30.0.1)
+
+TASK [common : Activer le pare-feu UFW] ****************************************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Créer le groupe de service atlsvc] ******************************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Créer l'utilisateur de service atlsvc] **************************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Déployer la clé publique SSH autorisée pour atlsvc] *************
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlsmtp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlgrf01p]
+
+TASK [common : Déployer la règle sudo NOPASSWD limitée pour atlsvc] ************
+ok: [atlbst01p]
+ok: [atlrp01p]
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Définir le fuseau horaire sur Europe/Paris] *********************
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlapp01p]
+ok: [atlbst01p]
+ok: [atlzbx01p]
+ok: [atlsmtp01p]
+ok: [atlbkp01p]
+ok: [atlgrf01p]
+
+TASK [common : S'assurer que systemd-timesyncd est installé] *******************
+ok: [atlrp01p]
+ok: [atltst01p]
+ok: [atlbst01p]
+ok: [atldb01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlsmtp01p]
+ok: [atlbkp01p]
+ok: [atlgrf01p]
+
+TASK [common : Déployer la configuration timesyncd] ****************************
+ok: [atlbst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [common : Démarrer et activer systemd-timesyncd] **************************
+changed: [atldb01p]
+changed: [atltst01p]
+changed: [atlrp01p]
+changed: [atlapp01p]
+changed: [atlbst01p]
+changed: [atlsmtp01p]
+changed: [atlzbx01p]
+changed: [atlbkp01p]
+changed: [atlgrf01p]
+
+TASK [common : Déployer le fichier /etc/hosts avec les entrées Atlas] **********
+ok: [atlbst01p]
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+PLAY [PRA — Configuration du bastion] ******************************************
+
+TASK [bastion : Déployer la bannière d'avertissement SSH] **********************
+ok: [atlbst01p]
+
+TASK [bastion : Déployer la configuration sshd dédiée au bastion] **************
+ok: [atlbst01p]
+
+TASK [bastion : Autoriser SSH (22/tcp) depuis le sous-réseau d'administration] ***
+ok: [atlbst01p]
+
+TASK [bastion : Créer le répertoire /root/.ssh] ********************************
+ok: [atlbst01p]
+
+TASK [bastion : Déployer la configuration SSH cliente vers les conteneurs Atlas] ***
+ok: [atlbst01p]
+
+TASK [bastion : Vérifier que le port 22 de chaque conteneur Atlas est joignable] ***
+ok: [atlbst01p] => (item=atlbst01p (10.90.0.10))
+ok: [atlbst01p] => (item=atlrp01p (10.20.0.10))
+ok: [atlbst01p] => (item=atlapp01p (10.20.0.11))
+ok: [atlbst01p] => (item=atldb01p (10.30.0.10))
+ok: [atlbst01p] => (item=atlsmtp01p (10.30.0.11))
+ok: [atlbst01p] => (item=atlzbx01p (10.30.0.12))
+ok: [atlbst01p] => (item=atlbkp01p (10.30.0.13))
+ok: [atlbst01p] => (item=atlgrf01p (10.30.0.14))
+ok: [atlbst01p] => (item=atltst01p (10.20.0.20))
+
+PLAY [PRA — Service base de données MariaDB] ***********************************
+
+TASK [mariadb : Installer le serveur et le client MariaDB] *********************
+ok: [atldb01p]
+
+TASK [mariadb : Activer et démarrer le service mariadb] ************************
+ok: [atldb01p]
+
+TASK [mariadb : Définir le mot de passe root MariaDB (première exécution uniquement)] ***
+ok: [atldb01p]
+
+TASK [mariadb : Déployer le fichier d'authentification /root/.my.cnf] **********
+ok: [atldb01p]
+
+TASK [mariadb : Créer le répertoire des journaux binaires /var/log/mysql] ******
+ok: [atldb01p]
+
+TASK [mariadb : Déployer la configuration serveur 99-atlas-server.cnf] *********
+ok: [atldb01p]
+
+TASK [mariadb : Compter les utilisateurs anonymes] *****************************
+ok: [atldb01p]
+
+TASK [mariadb : Supprimer les utilisateurs anonymes] ***************************
+skipping: [atldb01p]
+
+TASK [mariadb : Vérifier l'existence de la base de test] ***********************
+ok: [atldb01p]
+
+TASK [mariadb : Supprimer la base de test] *************************************
+skipping: [atldb01p]
+
+TASK [mariadb : Compter les comptes root accessibles à distance] ***************
+ok: [atldb01p]
+
+TASK [mariadb : Supprimer les comptes root accessibles à distance] *************
+skipping: [atldb01p]
+
+TASK [mariadb : Vérifier l'existence de la base glpi_db] ***********************
+ok: [atldb01p]
+
+TASK [mariadb : Créer la base glpi_db (utf8mb4)] *******************************
+skipping: [atldb01p]
+
+TASK [mariadb : Vérifier l'existence de l'utilisateur glpi_user@10.20.0.11] ****
+ok: [atldb01p]
+
+TASK [mariadb : Créer l'utilisateur glpi_user@10.20.0.11 (GLPI)] ***************
+skipping: [atldb01p]
+
+TASK [mariadb : Lister les privilèges de glpi_user@10.20.0.11] *****************
+ok: [atldb01p]
+
+TASK [mariadb : Accorder les privilèges applicatifs sur glpi_db à glpi_user@10.20.0.11] ***
+changed: [atldb01p]
+
+TASK [mariadb : Vérifier l'existence de l'utilisateur glpi_user@10.30.0.12] ****
+ok: [atldb01p]
+
+TASK [mariadb : Créer l'utilisateur glpi_user@10.30.0.12 (checks Zabbix)] ******
+skipping: [atldb01p]
+
+TASK [mariadb : Lister les privilèges de glpi_user@10.30.0.12] *****************
+ok: [atldb01p]
+
+TASK [mariadb : Accorder le privilège SELECT sur glpi_db à glpi_user@10.30.0.12] ***
+skipping: [atldb01p]
+
+TASK [mariadb : Recharger la table des privilèges] *****************************
+ok: [atldb01p]
+
+TASK [mariadb : Créer les répertoires nécessaires aux sauvegardes] *************
+ok: [atldb01p] => (item=/opt/atlas/scripts)
+ok: [atldb01p] => (item=/var/log/atlas)
+
+TASK [mariadb : Créer l'arborescence des dumps (lisible par atlsvc)] ***********
+ok: [atldb01p] => (item=/var/backups/atlas)
+changed: [atldb01p] => (item=/var/backups/atlas/db)
+
+TASK [mariadb : Déployer le script de sauvegarde dump_glpi.sh] *****************
+ok: [atldb01p]
+
+TASK [mariadb : Planifier le dump GLPI quotidien à 02h00] **********************
+ok: [atldb01p]
+
+TASK [mariadb : Planifier le dump GLPI toutes les 15 min (RPO)] ****************
+ok: [atldb01p]
+
+TASK [mariadb : S'assurer que le service mariadb est activé et démarré] ********
+ok: [atldb01p]
+
+TASK [mariadb : Autoriser le port 3306/tcp depuis les hôtes autorisés uniquement] ***
+ok: [atldb01p] => (item=10.20.0.11)
+ok: [atldb01p] => (item=10.30.0.12)
+
+TASK [mariadb : Afficher les variables du rôle mariadb] ************************
+skipping: [atldb01p]
+
+PLAY [PRA — Service relais SMTP] ***********************************************
+
+TASK [smtp : Pré-configurer le type de serveur de messagerie Postfix] **********
+ok: [atlsmtp01p]
+
+TASK [smtp : Pré-configurer le nom de messagerie Postfix] **********************
+ok: [atlsmtp01p]
+
+TASK [smtp : Installer Postfix et les utilitaires de messagerie] ***************
+ok: [atlsmtp01p]
+
+TASK [smtp : Déployer la configuration principale main.cf] *********************
+ok: [atlsmtp01p]
+
+TASK [smtp : Rediriger les courriels de root vers atlsvc] **********************
+ok: [atlsmtp01p]
+
+TASK [smtp : Autoriser le port 25/tcp depuis les réseaux Atlas] ****************
+ok: [atlsmtp01p] => (item=10.20.0.0/24)
+ok: [atlsmtp01p] => (item=10.30.0.0/24)
+
+TASK [smtp : Activer et démarrer le service postfix] ***************************
+ok: [atlsmtp01p]
+
+TASK [smtp : Forcer l'exécution des handlers en attente] ***********************
+
+TASK [smtp : Vérifier que Postfix écoute sur le port 25] ***********************
+ok: [atlsmtp01p]
+
+TASK [smtp : Envoyer un courriel de test à root] *******************************
+skipping: [atlsmtp01p]
+
+TASK [smtp : Afficher les variables du rôle smtp] ******************************
+skipping: [atlsmtp01p]
+
+PLAY [PRA — Service applicatif GLPI] *******************************************
+
+TASK [glpi : Installer nginx] **************************************************
+ok: [atlapp01p]
+
+TASK [glpi : Installer apt-transport-https] ************************************
+ok: [atlapp01p]
+
+TASK [glpi : Créer le répertoire des clés APT] *********************************
+ok: [atlapp01p]
+
+TASK [glpi : Télécharger la clé GPG du dépôt sury.org] *************************
+ok: [atlapp01p]
+
+TASK [glpi : Ajouter le dépôt APT sury.org (PHP)] ******************************
+ok: [atlapp01p]
+
+TASK [glpi : Installer PHP 8.2 FPM et les extensions requises par GLPI] ********
+ok: [atlapp01p]
+
+TASK [glpi : Créer les répertoires de base de GLPI] ****************************
+ok: [atlapp01p] => (item=/var/www)
+changed: [atlapp01p] => (item=/var/lib/glpi)
+
+TASK [glpi : Télécharger l'archive GLPI 10.0.16] *******************************
+ok: [atlapp01p]
+
+TASK [glpi : Extraire l'archive GLPI dans /var/www] ****************************
+skipping: [atlapp01p]
+
+TASK [glpi : Déplacer les répertoires de données hors du webroot] **************
+ok: [atlapp01p] => (item=files)
+ok: [atlapp01p] => (item=config)
+ok: [atlapp01p] => (item=marketplace)
+
+TASK [glpi : Déployer le fichier downstream.php (redirection de configuration)] ***
+changed: [atlapp01p]
+
+TASK [glpi : Déployer le fichier local_define.php (chemins de données)] ********
+ok: [atlapp01p]
+
+TASK [glpi : Verrouiller la propriété du code GLPI sur root] *******************
+changed: [atlapp01p]
+
+TASK [glpi : Donner l'accès en écriture à www-data uniquement sur les données et plugins] ***
+changed: [atlapp01p] => (item=/var/lib/glpi)
+changed: [atlapp01p] => (item=/var/www/glpi/plugins)
+
+TASK [glpi : Supprimer le répertoire d'installation web de GLPI] ***************
+ok: [atlapp01p]
+
+TASK [glpi : Déployer la configuration de connexion à la base de données] ******
+changed: [atlapp01p]
+
+TASK [glpi : Déployer le vhost nginx de GLPI] **********************************
+ok: [atlapp01p]
+
+TASK [glpi : Activer le vhost GLPI (lien symbolique)] **************************
+ok: [atlapp01p]
+
+TASK [glpi : Désactiver le site par défaut de nginx] ***************************
+ok: [atlapp01p]
+
+TASK [glpi : Autoriser le flux HTTP entrant depuis les sources légitimes uniquement] ***
+ok: [atlapp01p] => (item=10.20.0.10)
+ok: [atlapp01p] => (item=10.30.0.12)
+
+TASK [glpi : Activer et démarrer php8.2-fpm] ***********************************
+ok: [atlapp01p]
+
+TASK [glpi : Activer et démarrer nginx] ****************************************
+ok: [atlapp01p]
+
+TASK [glpi : Vider la file des handlers] ***************************************
+
+TASK [glpi : Vérifier que GLPI répond en HTTP] *********************************
+ok: [atlapp01p]
+
+TASK [glpi : Afficher le résultat de la vérification HTTP] *********************
+skipping: [atlapp01p]
+
+PLAY [PRA — Service reverse proxy] *********************************************
+
+TASK [reverse_proxy : Installer nginx et python3-cryptography] *****************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Créer le répertoire TLS de nginx] ************************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Générer la clé privée RSA] *******************************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Générer la CSR avec les SAN internes Atlas] **************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Générer le certificat auto-signé] ************************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Déployer la configuration principale nginx.conf] *********
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Déployer le vhost de publication GLPI] *******************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Activer le vhost GLPI (lien symbolique)] *****************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Désactiver le site par défaut de nginx] ******************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Autoriser les flux HTTP et HTTPS entrants] ***************
+ok: [atlrp01p] => (item=80)
+ok: [atlrp01p] => (item=443)
+
+TASK [reverse_proxy : Activer et démarrer le service nginx] ********************
+ok: [atlrp01p]
+
+TASK [reverse_proxy : Afficher l'état du service nginx] ************************
+skipping: [atlrp01p]
+
+PLAY [PRA — Service supervision Zabbix] ****************************************
+
+TASK [zabbix : Télécharger le paquet zabbix-release] ***************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Installer le paquet zabbix-release] *****************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Mettre à jour le cache APT] *************************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Installer les paquets du serveur Zabbix et du frontend] *********
+ok: [atlzbx01p]
+
+TASK [zabbix : Vérifier l'existence de la base de données zabbix] **************
+ok: [atlzbx01p -> atldb01p(10.30.0.10)]
+
+TASK [zabbix : Créer la base de données zabbix] ********************************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Vérifier l'existence de l'utilisateur MySQL zabbix] *************
+ok: [atlzbx01p -> atldb01p(10.30.0.10)]
+
+TASK [zabbix : Créer/converger l'utilisateur MySQL zabbix et son mot de passe] ***
+ok: [atlzbx01p -> atldb01p(10.30.0.10)]
+
+TASK [zabbix : Compter les tables existantes dans la base zabbix] **************
+ok: [atlzbx01p -> atldb01p(10.30.0.10)]
+
+TASK [zabbix : Activer temporairement log_bin_trust_function_creators] *********
+skipping: [atlzbx01p]
+
+TASK [zabbix : Importer le schéma initial de la base zabbix] *******************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Sécuriser le mot de passe du compte Admin Zabbix par défaut] ****
+skipping: [atlzbx01p]
+
+TASK [zabbix : Désactiver log_bin_trust_function_creators après l'import] ******
+skipping: [atlzbx01p]
+
+TASK [zabbix : Déployer la configuration du serveur Zabbix] ********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Créer le répertoire TLS du frontend Zabbix] *********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer la clé privée RSA du frontend Zabbix] *******************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer la CSR du frontend Zabbix] ******************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer le certificat auto-signé du frontend Zabbix] ************
+ok: [atlzbx01p]
+
+TASK [zabbix : Créer le répertoire TLS du frontend Zabbix] *********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer la clé privée RSA du frontend Zabbix] *******************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer la CSR du frontend Zabbix] ******************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Générer le certificat auto-signé du frontend Zabbix] ************
+ok: [atlzbx01p]
+
+TASK [zabbix : Déployer la configuration nginx du frontend Zabbix] *************
+ok: [atlzbx01p]
+
+TASK [zabbix : Activer l'inclusion de la configuration Zabbix dans nginx] ******
+ok: [atlzbx01p]
+
+TASK [zabbix : Supprimer le site nginx par défaut] *****************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Déployer la configuration du frontend Zabbix (zabbix.conf.php)] ***
+ok: [atlzbx01p]
+
+TASK [zabbix : Déployer les réglages PHP requis par le frontend Zabbix] ********
+ok: [atlzbx01p]
+
+TASK [zabbix : Autoriser l'accès HTTPS au frontend Zabbix (port 8443)] *********
+ok: [atlzbx01p] => (item=10.30.0.0/24)
+ok: [atlzbx01p] => (item=10.90.0.0/24)
+
+TASK [zabbix : Autoriser l'accès HTTP au frontend Zabbix (port 8080)] **********
+skipping: [atlzbx01p] => (item=10.30.0.0/24) 
+skipping: [atlzbx01p] => (item=10.90.0.0/24) 
+skipping: [atlzbx01p]
+
+TASK [zabbix : Autoriser le trapper Zabbix (port 10051)] ***********************
+ok: [atlzbx01p] => (item=10.20.0.0/24)
+ok: [atlzbx01p] => (item=10.30.0.0/24)
+ok: [atlzbx01p] => (item=10.90.0.0/24)
+
+TASK [zabbix : Démarrer et activer les services de la pile Zabbix] *************
+ok: [atlzbx01p] => (item=zabbix-server)
+ok: [atlzbx01p] => (item=zabbix-agent2)
+ok: [atlzbx01p] => (item=nginx)
+ok: [atlzbx01p] => (item=php8.2-fpm)
+
+TASK [zabbix : Afficher un résumé de la configuration Zabbix] ******************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Ouvrir une session API Zabbix] **********************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Rechercher le groupe d'hôtes Atlas] *****************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Créer le groupe d'hôtes Atlas] **********************************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Mémoriser l'identifiant du groupe d'hôtes Atlas] ****************
+ok: [atlzbx01p]
+
+TASK [zabbix : Récupérer le template Linux] ************************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Vérifier la présence du template « Linux by Zabbix agent »] *****
+ok: [atlzbx01p]
+
+TASK [zabbix : Mémoriser l'identifiant du template Linux] **********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Recenser les hôtes Atlas déjà présents dans Zabbix] *************
+ok: [atlzbx01p]
+
+TASK [zabbix : Mémoriser la liste des hôtes déjà enregistrés] ******************
+ok: [atlzbx01p]
+
+TASK [zabbix : Indexer les hôtes existants (hostid et interfaces)] *************
+ok: [atlzbx01p]
+
+TASK [zabbix : Enregistrer chaque hôte Atlas absent] ***************************
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p]
+
+TASK [zabbix : Réconcilier les hôtes Atlas existants (groupe et template)] *****
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p] => (item=None)
+changed: [atlzbx01p]
+
+TASK [zabbix : Réconcilier l'adresse IP de l'interface agent des hôtes existants] ***
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p] => (item=None) 
+skipping: [atlzbx01p]
+
+TASK [zabbix : Récupérer le rôle natif « User role » (lecture seule)] **********
+ok: [atlzbx01p]
+
+TASK [zabbix : Vérifier la présence du rôle « User role »] *********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Rechercher le groupe d'utilisateurs Grafana (lecture seule)] ****
+ok: [atlzbx01p]
+
+TASK [zabbix : Créer le groupe d'utilisateurs Grafana (lecture seule sur Atlas)] ***
+skipping: [atlzbx01p]
+
+TASK [zabbix : Mémoriser l'identifiant du groupe d'utilisateurs Grafana] *******
+ok: [atlzbx01p]
+
+TASK [zabbix : Rechercher le compte de service Grafana] ************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Créer le compte de service Grafana (lecture seule)] *************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Converger le mot de passe du compte de service Grafana] *********
+ok: [atlzbx01p]
+
+TASK [zabbix : Fermer la session API Zabbix] ***********************************
+ok: [atlzbx01p]
+
+TASK [zabbix : Afficher le résumé de l'enregistrement des hôtes] ***************
+skipping: [atlzbx01p]
+
+TASK [zabbix : Ne rien faire si aucun item de santé n'est à désactiver] ********
+skipping: [atlzbx01p]
+
+TASK [zabbix : Ouvrir une session API Zabbix (tune_health)] ********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Récupérer les items de santé à désactiver sur le template] ******
+ok: [atlzbx01p]
+
+TASK [zabbix : Désactiver les items internes non utilisés (idempotent)] ********
+skipping: [atlzbx01p]
+
+TASK [zabbix : Fermer la session API Zabbix (tune_health)] *********************
+ok: [atlzbx01p]
+
+TASK [zabbix : Résumé de la réduction du bruit de santé Zabbix] ****************
+skipping: [atlzbx01p]
+
+PLAY [PRA — Agents Zabbix sur tous les hôtes] **********************************
+
+TASK [zabbix_agent : Télécharger le paquet zabbix-release] *********************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Installer le paquet zabbix-release] ***********************
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Mettre à jour le cache APT] *******************************
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlbkp01p]
+ok: [atlzbx01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Installer l'agent Zabbix 2] *******************************
+ok: [atlrp01p]
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlsmtp01p]
+ok: [atlbkp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Déployer la configuration de l'agent Zabbix 2] ************
+ok: [atlbst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atltst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Déployer les UserParameters Atlas] ************************
+ok: [atlbst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atltst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Autoriser le serveur Zabbix à interroger l'agent (port 10050)] ***
+ok: [atltst01p]
+ok: [atlrp01p]
+ok: [atldb01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlbkp01p]
+ok: [atlsmtp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Démarrer et activer l'agent Zabbix 2] *********************
+ok: [atltst01p]
+ok: [atldb01p]
+ok: [atlrp01p]
+ok: [atlbst01p]
+ok: [atlapp01p]
+ok: [atlzbx01p]
+ok: [atlsmtp01p]
+ok: [atlbkp01p]
+ok: [atlgrf01p]
+
+TASK [zabbix_agent : Afficher un résumé de la configuration de l'agent Zabbix] ***
+skipping: [atlbst01p]
+skipping: [atlrp01p]
+skipping: [atlapp01p]
+skipping: [atltst01p]
+skipping: [atldb01p]
+skipping: [atlsmtp01p]
+skipping: [atlzbx01p]
+skipping: [atlbkp01p]
+skipping: [atlgrf01p]
+
+PLAY [PRA — Service de sauvegarde] *********************************************
+
+TASK [backup : Installer rsync] ************************************************
+ok: [atlbkp01p]
+
+TASK [backup : Créer les répertoires de sauvegarde et de journalisation] *******
+ok: [atlbkp01p] => (item=/opt/atlas/scripts)
+ok: [atlbkp01p] => (item=/var/backups/atlas/filestore)
+ok: [atlbkp01p] => (item=/var/backups/atlas/db-remote)
+ok: [atlbkp01p] => (item=/var/log/atlas)
+
+TASK [backup : Afficher l'arborescence créée] **********************************
+skipping: [atlbkp01p]
+
+TASK [backup : Générer la paire de clés ed25519 de sauvegarde pour root] *******
+ok: [atlbkp01p]
+
+TASK [backup : Afficher la clé publique générée] *******************************
+skipping: [atlbkp01p]
+
+TASK [backup : Autoriser la clé de sauvegarde pour atlsvc sur les hôtes sources] ***
+ok: [atlbkp01p -> atlapp01p(10.20.0.11)] => (item=atlapp01p)
+ok: [atlbkp01p -> atldb01p(10.30.0.10)] => (item=atldb01p)
+
+TASK [backup : Autoriser SSH depuis le serveur de sauvegarde sur les hôtes sources] ***
+ok: [atlbkp01p -> atlapp01p(10.20.0.11)] => (item=atlapp01p)
+ok: [atlbkp01p -> atldb01p(10.30.0.10)] => (item=atldb01p)
+
+TASK [backup : Donner au groupe atlsvc l'accès en lecture aux dumps sur atldb01p] ***
+changed: [atlbkp01p -> atldb01p(10.30.0.10)]
+
+TASK [backup : Déployer le script de sauvegarde du filestore GLPI] *************
+ok: [atlbkp01p]
+
+TASK [backup : Déployer le script de collecte des dumps MariaDB] ***************
+ok: [atlbkp01p]
+
+TASK [backup : Afficher les scripts déployés] **********************************
+skipping: [atlbkp01p]
+
+TASK [backup : Planifier la collecte des dumps/binlogs MariaDB (RPO)] **********
+ok: [atlbkp01p]
+
+TASK [backup : Planifier la sauvegarde du filestore GLPI à 03h00] **************
+ok: [atlbkp01p]
+
+TASK [backup : Afficher la planification cron] *********************************
+skipping: [atlbkp01p]
+
+PLAY [PRA — Restauration des données] ******************************************
+
+TASK [Déterminer le dernier dump VALIDE disponible sur atlbkp01p] **************
+ok: [atldb01p -> atlbkp01p(10.30.0.13)]
+
+TASK [Fixer le chemin du dump retenu] ******************************************
+ok: [atldb01p]
+
+TASK [Afficher le dump retenu pour la restauration] ****************************
+ok: [atldb01p] => 
+  msg: 'Dump retenu : /var/backups/atlas/db-remote/glpi_dump_20260716_005001.sql.gz'
+
+TASK [Transférer le dump depuis atlbkp01p vers atldb01p] ***********************
+changed: [atldb01p -> atlbkp01p(10.30.0.13)]
+
+TASK [Restaurer la base glpi_db depuis le dump] ********************************
+changed: [atldb01p]
+
+TASK [Restaurer le filestore GLPI depuis atlbkp01p vers atlapp01p] *************
+changed: [atldb01p -> atlbkp01p(10.30.0.13)]
+
+TASK [Remettre les permissions www-data sur le filestore GLPI] *****************
+ok: [atldb01p -> atlapp01p(10.20.0.11)]
+
+TASK [Supprimer le dump temporaire] ********************************************
+changed: [atldb01p]
+
+PLAY [PRA — Vérification de l'application GLPI] ********************************
+
+TASK [Vérifier que GLPI répond en HTTP (backend direct)] ***********************
+ok: [atlapp01p]
+
+TASK [Vérifier que GLPI répond via le reverse proxy HTTPS] *********************
+ok: [atlapp01p]
+
+PLAY [PRA — Vérification de la base de données] ********************************
+
+TASK [Compter les tickets GLPI restaurés] **************************************
+ok: [atldb01p]
+
+TASK [Afficher le nombre de tickets restaurés] *********************************
+ok: [atldb01p] => 
+  msg: 'Vérification base : [''COUNT(*)'', ''25'']'
+
+PLAY [PRA — Vérification du serveur Zabbix] ************************************
+
+TASK [Vérifier que le port 10051 du serveur Zabbix est ouvert] *****************
+ok: [atlzbx01p]
+
+PLAY [PRA — Horodatage de fin et RTO] ******************************************
+
+TASK [Enregistrer l'horodatage de fin (epoch)] *********************************
+ok: [proxmox_node]
+
+TASK [Calculer la durée totale de la restauration] *****************************
+ok: [proxmox_node]
+
+TASK [Afficher le RTO mesuré] **************************************************
+ok: [proxmox_node] => 
+  msg: 'RTO mesuré : 3 minutes 15 secondes (cible : 40 minutes)'
+
+TASK [Journaliser la fin de la restauration complète] **************************
+changed: [proxmox_node]
+
+PLAY RECAP *********************************************************************
+atlapp01p                  : ok=49   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+atlbkp01p                  : ok=35   changed=2    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0   
+atlbst01p                  : ok=31   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atldb01p                   : ok=58   changed=7    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0   
+atlgrf01p                  : ok=25   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atlrp01p                   : ok=36   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+atlsmtp01p                 : ok=33   changed=1    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+atltst01p                  : ok=25   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0   
+atlzbx01p                  : ok=71   changed=2    unreachable=0    failed=0    skipped=16   rescued=0    ignored=0   
+proxmox_node               : ok=32   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+

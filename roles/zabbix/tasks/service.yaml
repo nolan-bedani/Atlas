@@ -1,0 +1,27 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — activation des services
+# ══════════════════════════════════════════════
+
+# ─── Démarrage et activation des services ───
+
+- name: Démarrer et activer les services de la pile Zabbix
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - zabbix-server
+    - zabbix-agent2
+    - nginx
+    - php8.2-fpm
+
+# ─── Débogage ───
+
+- name: Afficher un résumé de la configuration Zabbix
+  ansible.builtin.debug:
+    msg: >-
+      Serveur Zabbix : {{ zabbix_server_ip }} —
+      BDD : {{ zabbix_db_host }} —
+      Frontend : http://{{ zabbix_server_ip }}:{{ zabbix_frontend_port }}/
+  when: zabbix_debug

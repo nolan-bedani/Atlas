@@ -1,0 +1,11 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix_agent — installation de l'agent
+# ══════════════════════════════════════════════
+
+# ─── Paquet de l'agent Zabbix ───
+
+- name: Installer l'agent Zabbix 2
+  ansible.builtin.apt:
+    name: zabbix-agent2
+    state: present

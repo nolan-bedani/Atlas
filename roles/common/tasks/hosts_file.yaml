@@ -1,0 +1,14 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — résolution locale /etc/hosts
+# ══════════════════════════════════════════════
+
+# ─── Fichier /etc/hosts Atlas ───
+
+- name: Déployer le fichier /etc/hosts avec les entrées Atlas
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,0 +1,128 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# site.yaml — Orchestrateur principal Projet Atlas
+# Usage complet  : ansible-playbook site.yaml -i develop/hosts.yaml
+# Usage ciblé    : ansible-playbook site.yaml -i develop/hosts.yaml --tags mariadb
+# Tags : proxmox_network, proxmox_provision, common, bastion,
+#        reverse_proxy, glpi, mariadb, smtp, zabbix, backup,
+#        grafana, testlab, glpi_seed
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Hyperviseur : réseau VLAN + provisioning des LXC ───
+- name: "Configuration réseau VLAN de l'hôte Proxmox"
+  hosts: proxmox_node
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: proxmox_network
+      tags: [proxmox_network]
+
+- name: "Provisioning des conteneurs LXC Atlas"
+  hosts: proxmox_node
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: proxmox_provision
+      tags: [proxmox_provision]
+
+# ─── Socle commun à tous les LXC ───
+- name: "Configuration de base de tous les conteneurs Atlas"
+  hosts: mgmt:dmz:lan_admin
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: common
+      tags: [common]
+
+# ─── Bastion SSH (VLAN 90) ───
+- name: "Configuration du bastion SSH"
+  hosts: atlbst01p
+  gather_facts: true
+  roles:
+    - role: bastion
+      tags: [bastion]
+
+# ─── Base de données (VLAN 30) ───
+- name: "Configuration du serveur MariaDB"
+  hosts: atldb01p
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: mariadb
+      tags: [mariadb]
+
+# ─── Sauvegardes (VLAN 30) ───
+# Configuré juste après MariaDB pour que la chaîne de sauvegarde soit
+# opérationnelle dès que des données existent (avant la mise en service de GLPI).
+- name: "Configuration du serveur de sauvegarde"
+  hosts: atlbkp01p
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: backup
+      tags: [backup]
+
+# ─── Relai SMTP (VLAN 30) ───
+- name: "Configuration du relai SMTP Postfix"
+  hosts: atlsmtp01p
+  gather_facts: true
+  roles:
+    - role: smtp
+      tags: [smtp]
+
+# ─── Application GLPI (VLAN 20) ───
+- name: "Configuration de l'application GLPI"
+  hosts: atlapp01p
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: glpi
+      tags: [glpi]
+
+# ─── Reverse proxy TLS (VLAN 20) ───
+- name: "Configuration du reverse proxy Nginx"
+  hosts: atlrp01p
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - role: reverse_proxy
+      tags: [reverse_proxy]
+
+# ─── Supervision Zabbix : serveur puis agents (VLAN 30 + tous) ───
+- name: "Configuration du serveur Zabbix"
+  hosts: atlzbx01p
+  gather_facts: true
+  roles:
+    - role: zabbix
+      tags: [zabbix]
+
+- name: "Déploiement des agents Zabbix sur tous les conteneurs"
+  hosts: mgmt:dmz:lan_admin
+  gather_facts: true
+  roles:
+    - role: zabbix_agent
+      tags: [zabbix]
+
+# ─── Tableaux de bord Grafana (VLAN 30) ───
+- name: "Configuration de Grafana (visualisation Zabbix)"
+  hosts: atlgrf01p
+  gather_facts: true
+  roles:
+    - role: grafana
+      tags: [grafana]
+
+# ─── Machine de test : incidents contrôlés (VLAN 20) ───
+- name: "Configuration de la machine de test (incidents chaos)"
+  hosts: atltst01p
+  gather_facts: true
+  roles:
+    - role: testlab
+      tags: [testlab]
+
+# ─── Données de démonstration GLPI ───
+- name: "Remplissage de GLPI avec des données de démonstration"
+  hosts: atlapp01p
+  gather_facts: true
+  roles:
+    - role: glpi_seed
+      tags: [glpi_seed]

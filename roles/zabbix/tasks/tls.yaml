@@ -1,0 +1,56 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — certificat TLS auto-signé du frontend
+# ══════════════════════════════════════════════
+# Le frontend Zabbix doit être servi en HTTPS (le mot de passe Admin transitait
+# sinon en clair sur le réseau). Certificat interne auto-signé, hors VCS,
+# généré sur l'hôte — même approche que le rôle reverse_proxy.
+
+# ─── Répertoire de stockage TLS ───
+
+- name: Créer le répertoire TLS du frontend Zabbix
+  ansible.builtin.file:
+    path: "{{ zabbix_frontend_tls_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# ─── Clé privée RSA 4096 bits ───
+
+- name: Générer la clé privée RSA du frontend Zabbix
+  community.crypto.openssl_privatekey:
+    path: "{{ zabbix_frontend_tls_dir }}/zabbix.key"
+    type: RSA
+    size: 4096
+    owner: root
+    group: root
+    mode: "0600"
+
+# ─── Demande de signature de certificat (CSR) ───
+
+- name: Générer la CSR du frontend Zabbix
+  community.crypto.openssl_csr:
+    path: "{{ zabbix_frontend_tls_dir }}/zabbix.csr"
+    privatekey_path: "{{ zabbix_frontend_tls_dir }}/zabbix.key"
+    common_name: "atlzbx01p.atlas.local"
+    subject_alt_name:
+      - "DNS:atlzbx01p.atlas.local"
+      - "IP:{{ zabbix_server_ip }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+# ─── Certificat auto-signé (validité 10 ans) ───
+
+- name: Générer le certificat auto-signé du frontend Zabbix
+  community.crypto.x509_certificate:
+    path: "{{ zabbix_frontend_tls_dir }}/zabbix.crt"
+    csr_path: "{{ zabbix_frontend_tls_dir }}/zabbix.csr"
+    privatekey_path: "{{ zabbix_frontend_tls_dir }}/zabbix.key"
+    provider: selfsigned
+    selfsigned_not_after: "+3650d"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx (zabbix)

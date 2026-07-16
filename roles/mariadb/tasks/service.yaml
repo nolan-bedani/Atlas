@@ -1,0 +1,32 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : mariadb — service et pare-feu
+# ══════════════════════════════════════════════
+
+# ─── Service MariaDB ───
+- name: S'assurer que le service mariadb est activé et démarré
+  ansible.builtin.service:
+    name: mariadb
+    enabled: true
+    state: started
+
+# ─── Pare-feu : accès MySQL restreint aux clients autorisés ───
+- name: Autoriser le port 3306/tcp depuis les hôtes autorisés uniquement
+  community.general.ufw:
+    rule: allow
+    port: "3306"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Atlas - acces MariaDB"
+  loop:
+    - 10.20.0.11
+    - 10.30.0.12
+
+# ─── Debug ───
+- name: Afficher les variables du rôle mariadb
+  ansible.builtin.debug:
+    msg:
+      - "Adresse d'écoute       : {{ mariadb_bind_address }}"
+      - "Répertoire sauvegardes : {{ mariadb_backup_dir }}"
+      - "Rétention des dumps    : {{ mariadb_backup_retention }}"
+  when: mariadb_debug

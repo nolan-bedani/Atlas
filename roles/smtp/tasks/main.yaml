@@ -1,0 +1,8 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : smtp — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: configure.yaml
+- ansible.builtin.import_tasks: service.yaml

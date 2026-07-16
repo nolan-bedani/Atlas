@@ -1,0 +1,98 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — téléchargement et déploiement de GLPI
+# ══════════════════════════════════════════════
+
+# ─── Répertoires de destination ───
+
+- name: Créer les répertoires de base de GLPI
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/www
+    - "{{ glpi_data_dir }}"
+
+# ─── Téléchargement de l'archive GLPI ───
+
+# Le checksum est omis si la variable glpi_checksum est vide
+- name: Télécharger l'archive GLPI {{ glpi_version }}
+  ansible.builtin.get_url:
+    url: "https://github.com/glpi-project/glpi/releases/download/{{ glpi_version }}/glpi-{{ glpi_version }}.tgz"
+    dest: "/tmp/glpi-{{ glpi_version }}.tgz"
+    checksum: "{{ ('sha256:' + glpi_checksum) if glpi_checksum | length > 0 else omit }}"
+    mode: "0644"
+
+# ─── Extraction dans le webroot ───
+
+# L'archive contient un dossier racine « glpi/ »
+- name: Extraire l'archive GLPI dans /var/www
+  ansible.builtin.unarchive:
+    src: "/tmp/glpi-{{ glpi_version }}.tgz"
+    dest: /var/www/
+    remote_src: true
+    creates: /var/www/glpi/bin/console
+
+# ─── Déplacement des données hors du webroot (sécurité) ───
+
+- name: Déplacer les répertoires de données hors du webroot
+  ansible.builtin.command:
+    cmd: "mv /var/www/glpi/{{ item }} {{ glpi_data_dir }}/{{ item }}"
+    creates: "{{ glpi_data_dir }}/{{ item }}"
+    removes: "/var/www/glpi/{{ item }}"
+  loop:
+    - files
+    - config
+    - marketplace
+
+# ─── Fichiers downstream GLPI ───
+
+- name: Déployer le fichier downstream.php (redirection de configuration)
+  ansible.builtin.template:
+    src: downstream.php.j2
+    dest: /var/www/glpi/inc/downstream.php
+    owner: www-data
+    group: www-data
+    mode: "0644"
+
+- name: Déployer le fichier local_define.php (chemins de données)
+  ansible.builtin.template:
+    src: local_define.php.j2
+    dest: "{{ glpi_data_dir }}/config/local_define.php"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+
+# ─── Permissions (moindre privilège) ───
+# Le code GLPI appartient à root : le serveur web NE DOIT PAS pouvoir réécrire
+# son propre code (sinon une compromission applicative = RCE persistante).
+# Seules les arborescences de données/plugins sont accessibles en écriture à www-data.
+- name: Verrouiller la propriété du code GLPI sur root
+  ansible.builtin.file:
+    path: /var/www/glpi
+    state: directory
+    owner: root
+    group: www-data
+    recurse: true
+
+- name: Donner l'accès en écriture à www-data uniquement sur les données et plugins
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    recurse: true
+  loop:
+    - "{{ glpi_data_dir }}"
+    - /var/www/glpi/plugins
+
+# ─── Suppression de l'installeur web (sécurité) ───
+# Le routeur GLPI sert /install/install.php : laisser ce répertoire exposerait
+# la réinstallation / mise à jour de la base via le reverse proxy.
+- name: Supprimer le répertoire d'installation web de GLPI
+  ansible.builtin.file:
+    path: /var/www/glpi/install
+    state: absent

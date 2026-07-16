@@ -1,0 +1,24 @@
+# =============================================================================
+# Projet Atlas — LAN_ADMIN (VLAN 30, 10.30.0.0/24)
+# =============================================================================
+# Fichier VOLONTAIREMENT sans service Docker.
+#
+# Contrairement à la DMZ (infra/dmz_vlan20/docker-compose.yml, proxy Nginx),
+# la zone LAN_ADMIN n'est PAS déployée via Docker Compose. Ses composants
+# (GLPI + MariaDB, Zabbix) sont provisionnés :
+#   - par les rôles Ansible (source de vérité) : roles/glpi, roles/mariadb,
+#     roles/zabbix — orchestrés par site.yaml et le PRA (pra_restore_full.yaml) ;
+#   - ou, pour la voie legacy/obsolète, par les scripts pct de ce répertoire :
+#     provision_glpi.sh (CT 102) et provision_zabbix.sh (CT 103).
+#
+# Ce fichier était précédemment à 0 octet, ce qui faisait échouer
+# « docker compose up » (« empty compose file ») et laissait croire à tort à une
+# parité avec la stack DMZ. Il est conservé, documenté et neutre : la clé
+# « services » vide ci-dessous rend le fichier lisible par Docker Compose sans
+# rien déployer.
+#
+# Pour ajouter un jour une stack Docker à cette zone, remplacer le bloc vide par
+# les services voulus (en cohérence avec l'architecture des rôles Ansible).
+# =============================================================================
+
+services: {}

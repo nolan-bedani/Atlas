@@ -1,0 +1,56 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — configuration de GLPI et de nginx
+# ══════════════════════════════════════════════
+
+# ─── Connexion à la base de données (secrets via Vault) ───
+
+# config_db.php contient le mot de passe de la base : il appartient à root et
+# n'est accessible qu'en lecture au groupe www-data (le serveur web ne doit pas
+# pouvoir réécrire ce fichier). Déployé APRÈS le chown récursif de download.yaml
+# pour ne pas être ré-écrasé en www-data.
+- name: Déployer la configuration de connexion à la base de données
+  ansible.builtin.template:
+    src: config_db.php.j2
+    dest: "{{ glpi_data_dir }}/config/config_db.php"
+    owner: root
+    group: www-data
+    mode: "0640"
+
+# ─── Hôte virtuel nginx pour GLPI ───
+
+- name: Déployer le vhost nginx de GLPI
+  ansible.builtin.template:
+    src: vhost_glpi.conf.j2
+    dest: /etc/nginx/sites-available/glpi.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recharger nginx (glpi)
+
+- name: Activer le vhost GLPI (lien symbolique)
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/glpi.conf
+    dest: /etc/nginx/sites-enabled/glpi.conf
+    state: link
+  notify: Recharger nginx (glpi)
+
+- name: Désactiver le site par défaut de nginx
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger nginx (glpi)
+
+# ─── Ouverture du pare-feu UFW ───
+
+# Le backend GLPI ne doit recevoir du HTTP clair que du reverse proxy (TLS amont)
+# et de la supervision. Toute autre source est bloquée (politique deny par défaut
+# du rôle common) pour ne pas contourner le TLS et le rate-limiting du proxy.
+- name: Autoriser le flux HTTP entrant depuis les sources légitimes uniquement
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    from_ip: "{{ item }}"
+    comment: "Atlas - acces HTTP GLPI"
+  loop: "{{ glpi_http_allowed_sources }}"

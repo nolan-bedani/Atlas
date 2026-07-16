@@ -1,0 +1,8 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi_seed — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: harden_accounts.yaml
+- ansible.builtin.import_tasks: api_enable.yaml
+- ansible.builtin.import_tasks: seed.yaml

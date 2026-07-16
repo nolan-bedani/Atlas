@@ -1,0 +1,238 @@
+{
+  "__commentaire": "Dashboard Atlas — géré par Ansible (rôle grafana), ne pas modifier manuellement",
+  "uid": "atlas-overview",
+  "title": "Atlas — Vue d'ensemble",
+  "tags": ["atlas", "pra-dr"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": { "from": "now-3h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Machine",
+        "type": "query",
+        "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+        "query": { "queryType": "host", "group": "Atlas", "host": "/.*/" },
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Disponibilité de l'agent",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Zabbix agent availability/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "EN LIGNE", "color": "green" }, "0": { "text": "INCONNU", "color": "orange" }, "2": { "text": "HORS LIGNE", "color": "red" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Uptime",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/System uptime/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "CPU actuel",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/^CPU utilization$/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 70 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Mémoire actuelle",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/^Memory utilization$/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 75 }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "CPU (%)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/^CPU utilization$/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Charge système (load average)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Load average/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "custom": { "fillOpacity": 10 } }, "overrides": [] }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Mémoire (%)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/^Memory utilization$/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Espace disque utilisé (%)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Space utilization/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Réseau eth0 (débit)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "0",
+          "datasource": { "type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix" },
+          "group": { "filter": "Atlas" },
+          "host": { "filter": "$host" },
+          "application": { "filter": "" },
+          "itemTag": { "filter": "" },
+          "item": { "filter": "/Bits (received|sent)/" },
+          "functions": [],
+          "options": { "showDisabledItems": false }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bps", "min": 0, "custom": { "fillOpacity": 10 } }, "overrides": [] }
+    }
+  ]
+}

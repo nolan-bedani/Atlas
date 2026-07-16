@@ -1,0 +1,51 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — clé SSH dédiée aux sauvegardes
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Génération de la paire de clés ed25519 (idempotent) ───
+- name: "Générer la paire de clés ed25519 de sauvegarde pour root"
+  community.crypto.openssh_keypair:
+    path: "{{ backup_ssh_key_path }}"
+    type: ed25519
+    owner: root
+    group: root
+    mode: "0600"
+    comment: "atlas-backup@atlbkp01p"
+  register: backup_ssh_keypair
+
+# ─── Diagnostic (mode debug) ───
+- name: "Afficher la clé publique générée"
+  ansible.builtin.debug:
+    msg: "Clé publique de sauvegarde : {{ backup_ssh_keypair.public_key }}"
+  when: backup_debug | bool
+
+# ─── Autorisation de la clé sur les hôtes sources (restreinte) ───
+# Moindre privilège : la clé n'est utilisable que depuis l'IP du serveur de
+# sauvegarde et sans shell interactif / forwarding. Pour verrouiller davantage,
+# remplacer par command="rrsync -ro <dir>" (rrsync est fourni avec rsync).
+- name: "Autoriser la clé de sauvegarde pour atlsvc sur les hôtes sources"
+  ansible.builtin.authorized_key:
+    user: "{{ backup_remote_user }}"
+    key: "{{ backup_ssh_keypair.public_key }}"
+    comment: "atlas-backup@atlbkp01p"
+    key_options: 'from="{{ backup_local_ip }}",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding'
+    state: present
+  delegate_to: "{{ item }}"
+  loop:
+    - atlapp01p
+    - atldb01p
+
+# ─── Ouverture SSH depuis le serveur de sauvegarde ───
+# Le rôle common ne permet SSH que depuis 10.90.0.0/24 (bastion) :
+# les rsync de sauvegarde partent de atlbkp01p et doivent être autorisés.
+- name: "Autoriser SSH depuis le serveur de sauvegarde sur les hôtes sources"
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    from_ip: "{{ backup_local_ip }}"
+  delegate_to: "{{ item }}"
+  loop:
+    - atlapp01p
+    - atldb01p

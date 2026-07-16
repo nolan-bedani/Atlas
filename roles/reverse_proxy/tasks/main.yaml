@@ -1,0 +1,9 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: install.yaml
+- ansible.builtin.import_tasks: tls.yaml
+- ansible.builtin.import_tasks: configure.yaml
+- ansible.builtin.import_tasks: service.yaml

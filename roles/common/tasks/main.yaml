@@ -1,0 +1,10 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — orchestrateur des tâches
+# ══════════════════════════════════════════════
+
+- ansible.builtin.import_tasks: packages.yaml
+- ansible.builtin.import_tasks: hardening.yaml
+- ansible.builtin.import_tasks: users.yaml
+- ansible.builtin.import_tasks: ntp.yaml
+- ansible.builtin.import_tasks: hosts_file.yaml

@@ -1,0 +1,19 @@
+# ══════════════════════════════════════════════
+# Rôle : bastion — durcissement sshd supplémentaire
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Restriction des utilisateurs autorisés ───
+# root est requis pour le rebond Ansible (ProxyCommand) ; clé seule (cf. ci-dessous).
+AllowUsers atlsvc root
+
+# ─── Durcissement (le bastion ne sert qu'au rebond SSH) ───
+PermitRootLogin prohibit-password
+PermitTunnel no
+AllowAgentForwarding no
+X11Forwarding no
+# AllowTcpForwarding DOIT rester 'yes' : c'est la fonction de rebond du bastion.
+AllowTcpForwarding yes
+
+# ─── Bannière d'avertissement ───
+Banner /etc/ssh/banner

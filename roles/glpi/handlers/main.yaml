@@ -1,0 +1,14 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : glpi — handlers
+# ══════════════════════════════════════════════
+
+# ─── Service nginx ───
+# Aucun handler PHP-FPM : le rôle ne modifie pas la configuration de php8.2-fpm
+# (php.ini/pool), il n'y a donc rien à redémarrer. Le service est seulement
+# activé/démarré dans service.yaml.
+
+- name: Recharger nginx (glpi)
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

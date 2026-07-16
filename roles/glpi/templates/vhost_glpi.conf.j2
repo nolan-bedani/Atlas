@@ -1,0 +1,25 @@
+# ══════════════════════════════════════════════
+# Rôle : glpi — vhost nginx de l'application GLPI
+# Fichier géré par Ansible — NE PAS MODIFIER À LA MAIN
+# ══════════════════════════════════════════════
+
+server {
+    listen 80;
+    server_name atlapp01p.atlas.local;
+
+    # ─── Racine web (dossier public de GLPI) ───
+    root {{ glpi_webroot }};
+    index index.php;
+
+    # ─── Routage de l'application ───
+    location / {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    # ─── Traitement PHP via FPM ───
+    location ~ ^/index\.php {
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}

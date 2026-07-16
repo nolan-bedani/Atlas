@@ -1,0 +1,16 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : zabbix — installation du serveur et du frontend
+# ══════════════════════════════════════════════
+
+# ─── Paquets Zabbix ───
+
+- name: Installer les paquets du serveur Zabbix et du frontend
+  ansible.builtin.apt:
+    name:
+      - zabbix-server-mysql
+      - zabbix-frontend-php
+      - zabbix-nginx-conf
+      - zabbix-sql-scripts
+      - zabbix-agent2
+    state: present

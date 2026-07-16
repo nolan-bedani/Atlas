@@ -1,0 +1,16 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — variables internes
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Chemins internes du serveur de sauvegarde ───
+backup_scripts_dir: "/opt/atlas/scripts"
+backup_filestore_dest: "/var/backups/atlas/filestore"
+backup_db_remote_dest: "/var/backups/atlas/db-remote"
+backup_log_dir: "/var/log/atlas"
+
+# ─── Clé SSH dédiée aux sauvegardes ───
+backup_ssh_key_path: "/root/.ssh/atlas_backup_ed25519"
+
+# ─── Compte de service distant ───
+backup_remote_user: "atlsvc"

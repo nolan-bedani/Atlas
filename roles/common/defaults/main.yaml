@@ -1,0 +1,54 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : common — variables par défaut
+# ══════════════════════════════════════════════
+
+# ─── Clé publique SSH du compte d'administration ───
+common_ssh_pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICGExy+C98JHFxEVLa3pi7P3EGdCDLHcsmKYpIldns2j atladm@atlas"
+
+# ─── Domaine interne Atlas ───
+common_atlas_domain: "atlas.local"
+
+# ─── Sources autorisées pour SSH (bastion + passerelles de l'hyperviseur) ───
+common_ssh_admin_sources:
+  - "10.90.0.0/24"
+  - "10.20.0.1"
+  - "10.30.0.1"
+
+# ─── Inventaire des conteneurs LXC Atlas ───
+common_atlas_hosts:
+  - { name: atlbst01p,  ip: 10.90.0.10 }
+  - { name: atlrp01p,   ip: 10.20.0.10 }
+  - { name: atlapp01p,  ip: 10.20.0.11 }
+  - { name: atldb01p,   ip: 10.30.0.10 }
+  - { name: atlsmtp01p, ip: 10.30.0.11 }
+  - { name: atlzbx01p,  ip: 10.30.0.12 }
+  - { name: atlbkp01p,  ip: 10.30.0.13 }
+  - { name: atlgrf01p,  ip: 10.30.0.14 }
+  - { name: atltst01p,  ip: 10.20.0.20 }
+
+# ─── Mise à jour APT (éviter un dist-upgrade à chaque exécution) ───
+# 'safe' : mises à jour sans changement majeur. 'dist' ponctuellement pour une
+# montée de version complète (noyau, etc.).
+common_apt_upgrade: "safe"
+
+# ─── NTP (plusieurs serveurs + repli) ───
+common_ntp_servers:
+  - "0.debian.pool.ntp.org"
+  - "1.debian.pool.ntp.org"
+  - "2.debian.pool.ntp.org"
+common_ntp_fallback:
+  - "pool.ntp.org"
+
+# ─── Services pilotables par atlsvc via sudo (moindre privilège, pas de joker) ───
+common_sudo_allowed_services:
+  - nginx
+  - "php8.2-fpm"
+  - mariadb
+  - zabbix-server
+  - zabbix-agent2
+  - grafana-server
+  - postfix
+
+# ─── Mode debug ───
+common_debug: false

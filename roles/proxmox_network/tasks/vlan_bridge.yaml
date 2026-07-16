@@ -1,0 +1,49 @@
+---
+# ══════════════════════════════════════════════
+# proxmox_network — Activation VLAN-aware sur le bridge
+# ══════════════════════════════════════════════
+
+# ─── Vérification de l'existence du bridge ───
+- name: "Vérifier que le bridge {{ proxmox_network_bridge }} existe"
+  ansible.builtin.command:
+    cmd: "ip link show {{ proxmox_network_bridge }}"
+  register: proxmox_network_bridge_check
+  changed_when: false
+  failed_when: proxmox_network_bridge_check.rc != 0
+
+# ─── Activation du mode VLAN-aware ───
+# NB : l'espace final dans insertafter est OBLIGATOIRE pour ne pas matcher
+# la stanza « iface vmbr0 inet6 » (présente sur les serveurs Hetzner).
+- name: "Activer le mode VLAN-aware sur {{ proxmox_network_bridge }}"
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    line: "\tbridge-vlan-aware yes"
+    insertafter: "^iface {{ proxmox_network_bridge }} inet "
+    regexp: '^\s*bridge-vlan-aware\s+'
+    state: present
+    backup: true
+  notify: Recharger la configuration réseau
+
+- name: "Autoriser la plage de VLANs 2-4094 sur {{ proxmox_network_bridge }}"
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    line: "\tbridge-vids 2-4094"
+    insertafter: "^iface {{ proxmox_network_bridge }} inet "
+    regexp: '^\s*bridge-vids\s+'
+    state: present
+  notify: Recharger la configuration réseau
+
+# ─── Sourçage du répertoire interfaces.d ───
+- name: "S'assurer que /etc/network/interfaces.d est sourcé"
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    line: "source /etc/network/interfaces.d/*"
+    regexp: '^\s*source\s+/etc/network/interfaces\.d/'
+    state: present
+  notify: Recharger la configuration réseau
+
+# ─── Debug ───
+- name: "Debug — état du bridge"
+  ansible.builtin.debug:
+    var: proxmox_network_bridge_check.stdout_lines
+  when: proxmox_network_debug

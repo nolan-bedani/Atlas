@@ -1,0 +1,11 @@
+# ══════════════════════════════════════════════
+# Sous-interfaces VLAN Atlas — géré par Ansible (rôle proxmox_network)
+# Ne pas modifier manuellement.
+# ══════════════════════════════════════════════
+{% for vlan in proxmox_network_vlans %}
+
+auto {{ proxmox_network_bridge }}.{{ vlan.id }}
+iface {{ proxmox_network_bridge }}.{{ vlan.id }} inet static
+{# Préfixe dérivé de vlan.subnet (10.20.0.0/24 -> 24) pour ne pas figer /24 #}
+	address {{ vlan.gw }}/{{ vlan.subnet.split('/')[1] }}
+{% endfor %}

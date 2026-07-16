@@ -1,0 +1,15 @@
+# ══════════════════════════════════════════════
+# Rôle : bastion — configuration SSH cliente de root
+# Fichier géré par Ansible — NE PAS MODIFIER MANUELLEMENT
+# ══════════════════════════════════════════════
+
+# ─── Conteneurs LXC Atlas ───
+{% for host in bastion_atlas_hosts %}
+Host {{ host.name }}
+    HostName {{ host.ip }}
+    User root
+    IdentityFile /root/.ssh/atlas_ed25519
+    {# accept-new : confiance au 1er contact (TOFU) mais alerte si la clé change #}
+    StrictHostKeyChecking accept-new
+
+{% endfor %}

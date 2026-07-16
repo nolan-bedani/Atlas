@@ -1,0 +1,28 @@
+---
+# ══════════════════════════════════════════════════════════════════════
+# Rôle : backup — variables par défaut
+# ══════════════════════════════════════════════════════════════════════
+
+# ─── Source filestore GLPI (atlapp01p) ───
+backup_glpi_host: "10.20.0.11"
+backup_glpi_filestore: "/var/lib/glpi/files"
+
+# ─── Source dumps MariaDB (atldb01p) ───
+backup_db_host: "10.30.0.10"
+backup_db_dumps_dir: "/var/backups/atlas/db"
+
+# ─── Binlogs MariaDB (PITR — collectés hors site pour tenir le RPO <= 20 min) ───
+# Le compte de collecte (atlsvc) doit avoir un accès lecture sur ces fichiers.
+backup_db_binlog_dir: "/var/log/mysql"
+
+# ─── Fréquence de collecte hors site (minutes) — doit rester <= RPO (20 min) ───
+backup_collect_interval_min: 15
+
+# ─── IP du serveur de sauvegarde (source des rsync, pour UFW) ───
+backup_local_ip: "10.30.0.13"
+
+# ─── Rétention des dumps collectés (en jours) ───
+backup_retention_days: 7
+
+# ─── Mode debug (affiche les tâches de diagnostic) ───
+backup_debug: false

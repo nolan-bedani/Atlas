@@ -1,0 +1,14 @@
+---
+# ══════════════════════════════════════════════
+# Collections Ansible requises — Projet Atlas
+# Installation : ansible-galaxy collection install -r collections/requirements.yaml
+# ══════════════════════════════════════════════
+# NB : le cahier des charges mentionnait « community.posix », qui n'existe
+# pas sur Ansible Galaxy — la collection officielle est « ansible.posix ».
+collections:
+  - name: community.general
+    version: ">=9.0.0"
+  - name: ansible.posix
+    version: ">=2.0.0"
+  - name: community.crypto
+    version: ">=2.0.0"

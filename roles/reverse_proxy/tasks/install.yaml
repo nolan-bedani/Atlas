@@ -1,0 +1,16 @@
+---
+# ══════════════════════════════════════════════
+# Rôle : reverse_proxy — installation des paquets
+# ══════════════════════════════════════════════
+
+# ─── Installation de nginx et des dépendances ───
+
+# python3-cryptography est requis par les modules community.crypto
+- name: Installer nginx et python3-cryptography
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - python3-cryptography
+    state: present
+    update_cache: true
+    cache_valid_time: 3600

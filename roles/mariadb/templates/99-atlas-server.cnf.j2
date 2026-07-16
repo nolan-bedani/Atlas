@@ -1,0 +1,14 @@
+# ══════════════════════════════════════════════
+# Rôle : mariadb — configuration serveur Atlas
+# Fichier géré par Ansible — ne pas modifier manuellement
+# ══════════════════════════════════════════════
+
+[mysqld]
+# ─── Réseau : écoute restreinte à l'IP du conteneur ───
+bind-address     = {{ mariadb_bind_address }}
+
+# ─── Journaux binaires (PRA : restauration au plus près, RPO <= 20 min) ───
+log_bin          = /var/log/mysql/mysql-bin.log
+binlog_format    = ROW
+expire_logs_days = 3
+server_id        = 1
